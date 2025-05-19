@@ -1,54 +1,55 @@
-# React + TypeScript + Vite
+# React AI Chat MVP
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is a minimal viable product (MVP) React 18 chat app that directly communicates with AI APIs using Vercel's Multi Agent AI SDK. It is a lightweight client-side app without any backend or streaming functionality.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Built with React 18  
+- Uses Vercel Multi Agent AI SDK to generate responses from AI models  
+- Supports multiple AI models selectable via a dropdown  
+- Sends messages and receives responses in a single batch (no streaming)  
+- Basic tool integration for scheduling, availability checking, and cart addition (via SDK tools)  
+- Simple UI with input and message display  
+- Not optimized or abstracted yet — MVP for client evaluation only  
 
-## Expanding the ESLint configuration
+## Installation
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+npm install
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+Usage
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Start the development server:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+npm run dev
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+The app will open locally, and you can interact with the AI by typing messages and selecting the AI model from the dropdown.
+Notes
+
+    There is no backend — all communication happens directly between the React app and AI APIs.
+
+    This app is not streaming responses; it waits for the full response before updating the UI.
+
+    The system instruction and other configurations should be updated according to your context and use case.
+
+    This code is a starting point and lacks advanced error handling, optimization, and architectural abstractions.
+
+    Designed as an MVP prototype to validate concepts with the client.
+
+Next Steps for Improvement
+
+    Add streaming response support for better user experience
+
+    Implement backend proxy or middleware if needed for security and rate limiting
+
+    Improve state management and code modularity
+
+    Add more robust error handling and retries
+
+    Abstract SDK usage into reusable hooks or services
+
+    Enhance UI/UX for production readiness
+
+Author
+
+Nikhil Rao
