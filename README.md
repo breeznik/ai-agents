@@ -1,4 +1,4 @@
-# React AI Chat MVP
+# Multi AI Agent For lounge Booking
 
 This is a minimal viable product (MVP) React 18 chat app that directly communicates with AI APIs using Vercel's Multi Agent AI SDK. It is a lightweight client-side app without any backend or streaming functionality.
 
