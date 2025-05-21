@@ -1,76 +1,68 @@
 "use client";
 
+import ChatOptions from "./chatComponents/Options";
+import Tabs from "./chatComponents/Tabs";
+
 interface MessageProps {
-  chatId: string;
-  role: string;
-  content: string | React.ReactNode;
+  message: any;
   toolInvocations?: any[];
   attachments?: any[];
 }
 
-export const Message = ({
-  chatId,
-  role,
-  content,
-  toolInvocations,
-  attachments,
-}: MessageProps) => {
+
+export const Message = ({ message }: MessageProps) => {
+  const content = message.content;
+  const role = message.role;
   const isUser = role === "user";
+  const toolInvocations = message?.componentalData;
 
   return (
-    <div
-      className={`flex flex-row gap-4 w-full max-w-2xl
-        ${isUser ? "justify-end" : "justify-start"}`}
-    >
-      {/* Bot icon on left */}
-      {/* {!isUser && ( */}
-        {/* <div className="w-6 h-6 flex justify-center items-center shrink-0 text-gray-300"> */}
-          {/* Replace with actual icon */}
-          {/* <div>🤖</div> */}
-        {/* </div> */}
-      {/* )} */}
-
-      {/* Message bubble */}
-      <div
-        className={`max-w-[75%] px-5 py-3 text-sm tracking-wide transition-transform duration-200 ease-in-out
+    <>
+      {/* Tool Result */}
+      {toolInvocations && (toolInvocations?.name === "getSchedule" || toolInvocations?.name === "getLounge") &&  (
+        <div
+          className={`flex w-full max-w-2xl px-4 ${
+            isUser ? "justify-end" : "justify-start"
+          }`}
+        > 
+          <div
+            className={`w-full max-w-[75%] px-4 py-3 text-sm tracking-wide backdrop-blur-md border shadow-md
           ${
             isUser
-              ? "ml-auto bg-blue-600 text-white rounded-xl rounded-br-none shadow-sm"
-              : "mr-auto bg-gray-700 text-gray-100 rounded-xl rounded-bl-none shadow-sm"
+              ? "bg-blue-500/10 border-blue-400/30 text-white rounded-xl rounded-br-none"
+              : "bg-white/5 border-white/20 text-white rounded-xl rounded-bl-none"
           }`}
+          >
+            <div className="max-h-80 overflow-y-auto pr-1 custom-scroll">
+              {toolInvocations.name === "getLounge" ? (
+                <Tabs tabs={toolInvocations.result} />
+              ) : toolInvocations.name === "getSchedule" ? (
+                <ChatOptions options={toolInvocations.result} />
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Message */}
+      <div
+        className={`flex w-full max-w-2xl px-4 ${
+          isUser ? "justify-end" : "justify-start"
+        }`}
       >
-        {typeof content === "string" ? (
-          <div className="whitespace-pre-wrap">{content}</div>
-        ) : (
-          content
-        )}
-
-        {/* Tool invocations */}
-        {toolInvocations && toolInvocations.length > 0 && (
-          <div className="mt-2 text-xs text-gray-400">
-            {toolInvocations.map((invocation, idx) => (
-              <div key={idx}>{JSON.stringify(invocation)}</div>
-            ))}
+        <div
+          className={`relative max-w-[75%] px-5 py-4 text-sm tracking-wide backdrop-blur-md
+        ${
+          isUser
+            ? "bg-blue-500/20 text-white border border-blue-400/30 rounded-xl rounded-br-none shadow-md"
+            : "bg-white/10 text-white border border-white/20 rounded-xl rounded-bl-none shadow-md"
+        }`}
+        >
+          <div className="whitespace-pre-wrap">
+            {typeof content === "string" ? content : content}
           </div>
-        )}
-
-        {/* Attachments */}
-        {attachments && attachments.length > 0 && (
-          <div className="mt-2 text-xs text-gray-400">
-            {attachments.map((attachment, idx) => (
-              <div key={idx}>{JSON.stringify(attachment)}</div>
-            ))}
-          </div>
-        )}
+        </div>
       </div>
-
-      {/* {isUser && ( */}
-        {/* <div className="w-6 h-6 flex justify-center items-center shrink-0 text-gray-300"> */}
-          {/* Replace with actual user icon */}
-          {/* <div>👤</div> */}
-        {/* </div> */}
-      {/* )} */}
-
-    </div>
+    </>
   );
 };

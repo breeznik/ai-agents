@@ -1,19 +1,12 @@
 
 // @ts-nocheck
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 
-export interface ChatMessage {
-  id: string;
-  chatId: string;
-  role: 'user' | 'assistant';
-  content: string | React.ReactNode;
-  toolInvocations?: any[];
-  attachments?: any[];
-}
 
 interface ChatState {
-  messages: ChatMessage[];
+  messages: any;
   isTyping: boolean;
+  trigger: boolean
 }
 
 const initialState: ChatState = {
@@ -25,18 +18,21 @@ const chatSlice = createSlice({
   name: 'chat',
   initialState,
   reducers: {
-    addMessage(state, action: PayloadAction<ChatMessage>) {
+    addMessage(state, action: any) {
       state.messages.push(action.payload);
     },
-    setTyping(state, action: PayloadAction<boolean>) {
+    setTyping(state, action: any) {
       state.isTyping = action.payload;
     },
     clearMessages(state) {
       state.messages = [];
     },
+    setTrigger(state , action:any){
+      state.trigger = !state.trigger;
+    }
   },
 });
 
-export const { addMessage, setTyping, clearMessages } = chatSlice.actions;
+export const { addMessage, setTyping, clearMessages  , setTrigger} = chatSlice.actions;
 
 export default chatSlice.reducer;
