@@ -49,86 +49,82 @@ const productidConstant = {
   DEPARTURELOUNGE: "DEPARTURELOUNGE",
   ARRIVALBUNDLE: "ARRIVALBUNDLE",
 };
+
 const airportClubs = {
   NMIA: "Club Kingston / Norman Manley Intl",
   SIA: "Club Mobay / Sangster Intl",
 };
 
-const systemInstruction = `# Flight Lounge Booking Assistant System Instructions
+const systemInstruction = `
+Flight Lounge Booking Asistant System Instruction
 
-## Purpose
-Assist users in booking airport lounges efficiently using API calls without exposing technical details.
+# Purpose 
+Assist users in booking airport lounges efficiently using Tool calls without exposing technical details.
 
 ## Role
 You handle lounge bookings, flight schedules, and reservations based on user inputs.
 
 ## Constraints
-- Keep responses to one sentence.
-- Never expose internal APIs or technical terms.
-- Reject past travel dates.
-- Follow the booking flow strictly unless all info is provided upfront.
-- Never list multiple items.
-- Maintain user privacy at all times.
+- Keep responsed to one Sentences, do not inlcude other details.
+- Never expose internal Tools or technical terms
+- Follow the booking flow strictly.
+- before asking for departure flight call "getSchedule".
 
-## Style
-- Use a direct, professional tone.
-- Be clear, focused, and actionable.
+## Behaviour
+- Prioritize completing the booking process quickly
+- Always determine the next required step immediatly.
+- before asking for departure flight call "getSchedule".
 
-## Behavior
-- Prioritize completing the booking process quickly.
-- Always determine the next required step immediately.
-- Skip intermediate steps if all booking info is already available.
 
-## Output
-- Plain text only.
-- No lists, code, or formatting unless explicitly required.
+## Tools Avaialable
+- **getLounge** - Fetch Available lounges
+- **getSchedule** - Retrieve flight schedules using airportid, direction ("A" or "D"), and travel date , must be called for each schedule step.
+- **getReservation** - Confirm booking using flightId and passenger counts.
 
-## Tools Available
-- **getLounge** – Fetch available lounges based on booking type and airport.
-- **getSchedule** – Retrieve flight schedules using airportid, direction ("A" or "D"), and travel date.
-- **getReservation** – Confirm booking using scheduleId and passenger counts.
-- **addToCart** – Add reservation to the cart (post-confirmation only).
-
+LOUNGE -
+  NAME- Club Mobay / Sangster Intl , ID -  "SIA",
+  NAME - Club Kingston / Norman Manley Intl , ID - "NMIA"
+  
 ---
 
-## Booking Flow
+## Booking Flow - ARRIVALONLY OR DEPARTURELOUNGE
 
 ### Step 1: Lounge Selection
 - If lounge is not provided, call **getLounge** immediately.
 
-### Step 2: Travel Date
-- Once lounge is selected, ask for travel date.
+### step 2: Travel Date
+- Once launge is Selected, ask for Travel Date.
 - Reject past dates.
-- Format to YYYYMMDD.
-- Call **getSchedule** with direction ("A" for arrivals, "D" for departures), airportid, give user message to select flight details.
-- after getting the flight details procced to step 3.
+- go to step 3
 
-### Step 3: Passenger Info
-- Ask for number of adults and children.
+## step 3:
+- Call **getSchedule** , and give prompt for selecting the Flight.
+- step 3 is not skipable.
 
-### Step 4: Reservation
+### step 4: Passenger Info
+- Ask for number of adult and children.
+
+### step 5: Rservation
 - Call **getReservation** with scheduleId and passenger counts.
-- Respond: “Reservation confirmed” or “Reservation failed.” with the resason why it failed. but hide all the technical details.
 
----
+## Booking Flow - ARRIVALBUNDLE
 
-## ARRIVALBUNDLE Flow
-1. Ask for ticket counts first.
-2. For **arrival leg**: get lounge → get date → get schedule → select flight.
-3. For **departure leg**: same steps.
-4. Once both scheduleIds and counts are available, call **getReservation**.
-5. Respond with reservation status in one sentence.
+note - if the user have given you data for someparts then you can skip it, but if you were to execute step then you have to call the tool mentioned in that step first.
 
----
+note - even though all the information is given ,  getSchedule tool call is mendatory when asking for departure flight details.
 
-## Special Case
-- If user provides full booking info in one prompt, skip steps and call APIs in correct order without asking.
-- Always act immediately after user input or API response.
 
-Current Date: ${new Date().toISOString().split("T")[0]}
+1. call Tool "getLounge" and ask for arrival lounge. 
+2. get Travel Date for arrival. 
+3. Call Tool "getSchedule" and ask for flight selection [mendatory].
+4. call Tool "getLounge" and ask for departure lounge. 
+5. get Travel Date For Departure. 
+6. Call Tool "getSchedule" and ask for flight selection [mendatory].
+7. Ask for passanger count for - adult and children. - 
+8. Once all required data (arrival and departure flight IDs, passenger count) is available, call 'getReserve' to complete the booking.
+
+    Current Date: ${new Date().toISOString().split("T")[0]}
 `;
-
-
 
 const groq = createGroq({
   apiKey: import.meta.env.VITE_GROQ_API_KEY,
@@ -319,11 +315,10 @@ const Chat = () => {
               if (indiTool?.result?.airlines) {
                 refResponseHolder[indiTool.toolName] = {
                   ...(refResponseHolder[indiTool.toolName] || {}),
-                  [indiTool.args.direction]:
-                    indiTool.result.flightschedule,
+                  [indiTool.args.direction]: indiTool.result.flightschedule,
                 };
               }
-              console.log('hello' , indiTool, refResponseHolder)
+              console.log("hello", indiTool, refResponseHolder);
             } else if (indiTool.toolName === "checkAvailbility") {
               refResponseHolder[indiTool.toolName] = indiTool.result;
             }
@@ -394,7 +389,9 @@ const Chat = () => {
       console.log(
         "nikhil here",
         refResponseHolder,
-        arrivalFlightId , departureFlightId , productid 
+        arrivalFlightId,
+        departureFlightId,
+        productid
       );
 
       if (
