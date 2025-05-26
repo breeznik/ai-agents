@@ -116,10 +116,10 @@ note - even though all the information is given ,  getSchedule tool call is mend
 
 1. call Tool "getLounge" and ask for arrival lounge. 
 2. get Travel Date for arrival. 
-3. Call Tool "getSchedule" and ask for flight selection [mendatory].
+3. Call Tool "getSchedule" [mendatory].
 4. call Tool "getLounge" and ask for departure lounge. 
 5. get Travel Date For Departure. 
-6. Call Tool "getSchedule" and ask for flight selection [mendatory].
+6. Call Tool "getSchedule" for departure [mendatory].
 7. Ask for passanger count for - adult and children. - 
 8. Once all required data (arrival and departure flight IDs, passenger count) is available, call 'getReserve' to complete the booking.
 
@@ -195,13 +195,10 @@ async function getSchedule(direction, airportid, traveldate, loginDetails) {
       traveldate: traveldate,
     },
   };
-
   const response = await axios.post(
     "https://nigeriadev.reliablesoftjm.com/VIPERWS/getschedule",
     request
   );
-  console.log("getschedule response ", response.data);
-
   return response.data.data;
 }
 
@@ -583,7 +580,7 @@ const Chat = () => {
             ))}
           </div>
         )}
-
+        
         {/* Input Box */}
         <div className="border-t border-white/10 px-6 py-4 bg-white/5 backdrop-blur-lg">
           <div className="flex items-center gap-2 relative w-full">

@@ -6,7 +6,7 @@ import { createSlice } from '@reduxjs/toolkit';
 interface ChatState {
   messages: any;
   isTyping: boolean;
-  trigger: boolean
+  trigger?: boolean
 }
 
 const initialState: ChatState = {
