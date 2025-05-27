@@ -11,6 +11,7 @@ import { z } from "zod";
 import { useDispatch, useSelector } from "react-redux";
 import { addMessage, clearMessages } from "../store/slices/ChatReducer";
 import axios from "axios";
+import { devServer, staticLoginCred } from "../utils/constants";
 
 const LOUNGE = [
   { name: "Club Mobay / Sangster Intl (SIA)", value: "SIA" },
@@ -41,8 +42,8 @@ const suggestionGroups = {
   timeSensitive: ["I want to book a lounge for today"],
 };
 const loginObj = {
-  username: "esite3@viponline",
-  sessionid: "00081276658910697845036591",
+  username: staticLoginCred.username,
+  sessionid: staticLoginCred.sesionId,
 };
 const productidConstant = {
   ARRIVALONLY: "ARRIVALONLY",
@@ -196,7 +197,7 @@ async function getSchedule(direction, airportid, traveldate, loginDetails) {
     },
   };
   const response = await axios.post(
-    "https://nigeriadev.reliablesoftjm.com/VIPERWS/getschedule",
+    devServer("getSchedule"),
     request
   );
   return response.data.data;
@@ -227,7 +228,7 @@ async function checkAvailbility(
   };
   console.log(request, "request for reserve");
   const response = await axios.post(
-    "https://nigeriadev.reliablesoftjm.com/VIPERWS/reservecartitem",
+    devServer("reservecartitem"),
     request
   );
   console.log("check avialability response , nikhil", response);
