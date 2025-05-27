@@ -32,7 +32,7 @@ Set your API key in your environment:
 
 AI_API_KEY=your_api_key_here
 
-Can be placed in .env.local or managed via the Vercel dashboard.
+Can be placed in .env
 
 Author: Nikhil Rao
 
