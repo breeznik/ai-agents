@@ -1,0 +1,1 @@
+ # Frontend-specific docs (setup, tech stack, instructions)  
