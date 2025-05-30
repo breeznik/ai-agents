@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { Message } from "./Messages";
 import { createXai } from "@ai-sdk/xai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText, tool } from "ai";
+import { experimental_createMCPClient, generateText, tool } from "ai";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGroq } from "@ai-sdk/groq";
@@ -12,117 +12,16 @@ import { useDispatch, useSelector } from "react-redux";
 import { addMessage, clearMessages } from "../store/slices/ChatReducer";
 import axios from "axios";
 import { devServer, staticLoginCred } from "../utils/constants";
+import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 
-const LOUNGE = [
-  { name: "Club Mobay / Sangster Intl (SIA)", value: "SIA" },
-  { name: "Club Kingston / Norman Manley Intl (NMIA)", value: "NMIA" },
-];
-
-const TabStrucutre = {
-  name: "",
-  value: "",
-};
-
-const suggestionGroups = {
-  quickStart: [
-    "Book both arrival and departure lounges",
-    "Book a departure lounge",
-    "Book an arrival lounge",
-  ],
-  locationSpecific: [
-    "Help me find a lounge at Sangster International (SIA)",
-    "Help me find a lounge at Norman Manley International (NMIA)",
-  ],
-  utility: [
-    "Check lounge availability for my flight",
-    "Add lounge to my booking cart",
-    "I want to see flights for my travel date",
-    "How many tickets can I book?",
-  ],
-  timeSensitive: ["I want to book a lounge for today"],
-};
 const loginObj = {
   username: staticLoginCred.username,
   sessionid: staticLoginCred.sesionId,
 };
-const productidConstant = {
-  ARRIVALONLY: "ARRIVALONLY",
-  DEPARTURELOUNGE: "DEPARTURELOUNGE",
-  ARRIVALBUNDLE: "ARRIVALBUNDLE",
-};
-
-const airportClubs = {
-  NMIA: "Club Kingston / Norman Manley Intl",
-  SIA: "Club Mobay / Sangster Intl",
-};
 
 const systemInstruction = `
-Flight Lounge Booking Asistant System Instruction
 
-# Purpose 
-Assist users in booking airport lounges efficiently using Tool calls without exposing technical details.
-
-## Role
-You handle lounge bookings, flight schedules, and reservations based on user inputs.
-
-## Constraints
-- Keep responsed to one Sentences, do not inlcude other details.
-- Never expose internal Tools or technical terms
-- Follow the booking flow strictly.
-- before asking for departure flight call "getSchedule".
-
-## Behaviour
-- Prioritize completing the booking process quickly
-- Always determine the next required step immediatly.
-- before asking for departure flight call "getSchedule".
-
-
-## Tools Avaialable
-- **getLounge** - Fetch Available lounges
-- **getSchedule** - Retrieve flight schedules using airportid, direction ("A" or "D"), and travel date , must be called for each schedule step.
-- **getReservation** - Confirm booking using flightId and passenger counts.
-
-LOUNGE -
-  NAME- Club Mobay / Sangster Intl , ID -  "SIA",
-  NAME - Club Kingston / Norman Manley Intl , ID - "NMIA"
-  
----
-
-## Booking Flow - ARRIVALONLY OR DEPARTURELOUNGE
-
-### Step 1: Lounge Selection
-- If lounge is not provided, call **getLounge** immediately.
-
-### step 2: Travel Date
-- Once launge is Selected, ask for Travel Date.
-- Reject past dates.
-- go to step 3
-
-## step 3:
-- Call **getSchedule** , and give prompt for selecting the Flight.
-- step 3 is not skipable.
-
-### step 4: Passenger Info
-- Ask for number of adult and children.
-
-### step 5: Rservation
-- Call **getReservation** with scheduleId and passenger counts.
-
-## Booking Flow - ARRIVALBUNDLE
-
-note - if the user have given you data for someparts then you can skip it, but if you were to execute step then you have to call the tool mentioned in that step first.
-
-note - even though all the information is given ,  getSchedule tool call is mendatory when asking for departure flight details.
-
-
-1. call Tool "getLounge" and ask for arrival lounge. 
-2. get Travel Date for arrival. 
-3. Call Tool "getSchedule" [mendatory].
-4. call Tool "getLounge" and ask for departure lounge. 
-5. get Travel Date For Departure. 
-6. Call Tool "getSchedule" for departure [mendatory].
-7. Ask for passanger count for - adult and children. - 
-8. Once all required data (arrival and departure flight IDs, passenger count) is available, call 'getReserve' to complete the booking.
+you can expose the tool you have
 
     Current Date: ${new Date().toISOString().split("T")[0]}
 `;
@@ -185,60 +84,15 @@ const modelOptions = {
   },
 };
 
-async function getSchedule(direction, airportid, traveldate, loginDetails) {
-  const request = {
-    username: loginObj.username,
-    sessionid: loginObj.sessionid,
-    failstatus: 0,
-    request: {
-      direction: direction,
-      airportid: airportid,
-      traveldate: traveldate,
-    },
-  };
-  const response = await axios.post(
-    devServer("getSchedule"),
-    request
-  );
-  return response.data.data;
-}
+// Alternatively, you can connect to a Server-Sent Events (SSE) MCP server:
+const clientTwo = await experimental_createMCPClient({
+  transport: {
+    type: "sse",
+    url: "http://localhost:3000/sse",
+  },
+});
 
-async function checkAvailbility(
-  productid,
-  arrivalscheduleid,
-  departurescheduleid,
-  adulttickets,
-  childtickets
-) {
-  const request = {
-    username: loginObj.username,
-    sessionid: loginObj.sessionid,
-    failstatus: 0,
-    request: {
-      cartitemid: 0,
-      productid: productid,
-      ticketsrequested: adulttickets + childtickets,
-      adulttickets: adulttickets,
-      childtickets: childtickets,
-      paymenttype: "GUESTCARD",
-      distributorid: "",
-      arrivalscheduleid: arrivalscheduleid,
-      departurescheduleid: departurescheduleid,
-    },
-  };
-  console.log(request, "request for reserve");
-  const response = await axios.post(
-    devServer("reservecartitem"),
-    request
-  );
-  console.log("check avialability response , nikhil", response);
-
-  return {
-    data: response.data,
-    statusMessage: response?.statusMessage || response.data.statusMessage,
-    request,
-  };
-}
+const tools = await clientTwo.tools();
 
 const Chat = () => {
   const [input, setInput] = useState("");
@@ -293,33 +147,13 @@ const Chat = () => {
         system: systemInstruction,
         maxSteps: 5,
         maxRetries: 2,
-        tools: {
-          getLounge: tool(getLoungeDeclaration),
-          getSchedule: tool(getScheduleDeclaration),
-          getReservation: tool(getReservationDeclaration),
-        },
+        tools,
         onStepFinish({ toolResults, result }) {
           toolResults.forEach((indiTool) => {
             toolCalled = {
               name: indiTool.toolName,
               result: indiTool.result,
             };
-            console.log({
-              [indiTool.toolName]: indiTool.args,
-              response: indiTool.result,
-            });
-
-            if (indiTool.toolName === "getSchedule") {
-              if (indiTool?.result?.airlines) {
-                refResponseHolder[indiTool.toolName] = {
-                  ...(refResponseHolder[indiTool.toolName] || {}),
-                  [indiTool.args.direction]: indiTool.result.flightschedule,
-                };
-              }
-              console.log("hello", indiTool, refResponseHolder);
-            } else if (indiTool.toolName === "checkAvailbility") {
-              refResponseHolder[indiTool.toolName] = indiTool.result;
-            }
           });
         },
       });
@@ -330,7 +164,6 @@ const Chat = () => {
         addMessage({
           role: "assistant",
           content: text,
-          componentalData: toolCalled,
         })
       );
 
@@ -348,178 +181,6 @@ const Chat = () => {
       sendMessages(messages[messages.length - 1].content, true);
     }
   }, [trigger]);
-
-  const isPast = (yyyymmdd) => {
-    const inputDate = new Date(
-      yyyymmdd.toString().slice(0, 4),
-      yyyymmdd.toString().slice(4, 6) - 1,
-      yyyymmdd.toString().slice(6, 8)
-    );
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return inputDate < today;
-  };
-
-  const functions = {
-    getSchedule: async ({ direction, airportid, traveldate }) => {
-      if (!direction || !airportid || !traveldate) {
-        return {
-          message: "Please provide all the details to fetch airline info",
-        };
-      } else if (isPast(traveldate)) {
-        return {
-          message:
-            "I'm sorry, but bookings can only be made for today or future dates.",
-        };
-      } else {
-        return getSchedule(direction, airportid, traveldate, loginObj);
-      }
-    },
-    getReservation: async ({
-      productid,
-      arrivalFlightId,
-      departureFlightId,
-      adulttickets,
-      childtickets,
-    }) => {
-      let departurescheduleid = null;
-      let arrivalscheduleid = null;
-      console.log(
-        "nikhil here",
-        refResponseHolder,
-        arrivalFlightId,
-        departureFlightId,
-        productid
-      );
-
-      if (
-        productid === productidConstant.ARRIVALONLY ||
-        productid === productidConstant.ARRIVALBUNDLE
-      ) {
-        if (!refResponseHolder["getSchedule"]?.["A"]) {
-          console.log("return called arrival");
-          return {
-            instruction:
-              "call getSchedule for provided date without confirmation arrival",
-          };
-        }
-
-        for (const scheduleObj of refResponseHolder["getSchedule"]?.["A"]) {
-          if (scheduleObj.flightId === arrivalFlightId) {
-            arrivalscheduleid = scheduleObj.scheduleId;
-            break;
-          }
-        }
-      }
-
-      if (
-        productid === productidConstant.DEPARTURELOUNGE ||
-        productid === productidConstant.ARRIVALBUNDLE
-      ) {
-        if (!refResponseHolder["getSchedule"]?.["D"]) {
-          console.log("return called deprature");
-          return {
-            instruction:
-              "call getSchedule for provided date without confirmation departure",
-          };
-        }
-
-        for (const scheduleObj of refResponseHolder["getSchedule"]?.["D"]) {
-          if (scheduleObj.flightId === departureFlightId) {
-            departurescheduleid = scheduleObj.scheduleId;
-            break;
-          }
-        }
-      }
-
-      console.log(
-        "nikhil",
-        arrivalscheduleid,
-        departurescheduleid,
-        refResponseHolder["getSchedule"]?.["D"],
-        refResponseHolder["getSchedule"]?.["A"],
-        refResponseHolder
-      );
-      console.log(
-        "log from fucntion ",
-        productid,
-        arrivalscheduleid,
-        departurescheduleid,
-        adulttickets,
-        childtickets
-      );
-      return checkAvailbility(
-        productid,
-        arrivalscheduleid,
-        departurescheduleid,
-        adulttickets,
-        childtickets
-      );
-    },
-  };
-
-  const getLoungeDeclaration = {
-    description: "Get the Object For lounge selection",
-    parameters: z.object({}),
-    execute: () => {
-      return LOUNGE;
-    },
-  };
-
-  const getScheduleDeclaration = {
-    description:
-      "Gets the schedule info for a flight based on the given date, lounge name, and direction.",
-    parameters: z.object({
-      direction: z
-        .enum(["D", "A"])
-        .describe(
-          "Defines the flight direction: 'D' for departure or 'A' for arrival."
-        ),
-      airportid: z
-        .enum(["NMIA", "SIA"])
-        .describe(
-          "The airport ID where the lounge is booked. It will be either 'NMIA' or 'SIA'."
-        ),
-      traveldate: z
-        .string()
-        .regex(/^\d{8}$/, "Date must be in YYYYMMDD format")
-        .describe("The date of travel in 'YYYYMMDD' format."),
-    }),
-    execute: functions.getSchedule,
-  };
-
-  const getReservationDeclaration = {
-    description:
-      "Checks the Reservation of lounge seats for the selected flight and product type.",
-    parameters: z.object({
-      productid: z
-        .enum(["ARRIVALONLY", "DEPARTURELOUNGE", "ARRIVALBUNDLE"])
-        .describe(
-          "Defines the product type based on user selection: ARRIVALONLY for arrival, DEPARTURELOUNGE for departure, ARRIVALBUNDLE for both."
-        ),
-      arrivalFlightId: z
-        .string()
-        .describe(
-          "Flight ID for arrival. It will be '0' if the product is DEPARTURELOUNGE."
-        ),
-      departureFlightId: z
-        .string()
-        .describe(
-          "Flight ID for departure. It will be '0' if the product is ARRIVALONLY."
-        ),
-      adulttickets: z
-        .number()
-        .describe(
-          "The number of adult tickets. Must be provided after flight details are confirmed."
-        ),
-      childtickets: z
-        .number()
-        .describe(
-          "The number of child tickets. Must be provided after flight details are confirmed."
-        ),
-    }),
-    execute: functions.getReservation,
-  };
 
   return (
     <div className="flex flex-col h-screen w-full items-center justify-center bg-gradient-to-br from-gray-800 via-slate-900 px-4 py-3">
@@ -565,23 +226,6 @@ const Chat = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Suggestions */}
-        {messages.length === 0 && (
-          <div className="px-6 py-4 flex gap-3 flex-wrap justify-center">
-            {suggestionGroups.quickStart.map((suggestion, idx) => (
-              <div
-                key={idx}
-                onClick={() => {
-                  sendMessages(suggestion);
-                }}
-                className="cursor-pointer bg-white/10 hover:bg-white/20 text-white text-sm px-4 py-2 rounded-lg transition select-none backdrop-blur-md border border-white/10 shadow"
-              >
-                💡 {suggestion}
-              </div>
-            ))}
-          </div>
-        )}
-        
         {/* Input Box */}
         <div className="border-t border-white/10 px-6 py-4 bg-white/5 backdrop-blur-lg">
           <div className="flex items-center gap-2 relative w-full">
