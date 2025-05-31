@@ -20,9 +20,8 @@ const loginObj = {
 };
 
 const systemInstruction = `
-
-you can expose the tool you have
-
+    # you are an lounge booking agent
+    content recived should be present in formate and perfoessional manner.
     Current Date: ${new Date().toISOString().split("T")[0]}
 `;
 
@@ -93,6 +92,8 @@ const clientTwo = await experimental_createMCPClient({
 });
 
 const tools = await clientTwo.tools();
+const serverInstruction = await clientTwo.init();
+console.log("serverInstructions" ,  serverInstruction);
 
 const Chat = () => {
   const [input, setInput] = useState("");
@@ -144,7 +145,6 @@ const Chat = () => {
       const { text } = await generateText({
         messages: contextMessages,
         model: selected.instance,
-        system: systemInstruction,
         maxSteps: 5,
         maxRetries: 2,
         tools,
