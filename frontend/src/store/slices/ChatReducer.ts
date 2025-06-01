@@ -1,12 +1,10 @@
-
 // @ts-nocheck
-import { createSlice } from '@reduxjs/toolkit';
-
+import { createSlice } from "@reduxjs/toolkit";
 
 interface ChatState {
   messages: any;
   isTyping: boolean;
-  trigger?: boolean
+  trigger?: boolean;
 }
 
 const initialState: ChatState = {
@@ -15,7 +13,7 @@ const initialState: ChatState = {
 };
 
 const chatSlice = createSlice({
-  name: 'chat',
+  name: "chat",
   initialState,
   reducers: {
     addMessage(state, action: any) {
@@ -27,12 +25,19 @@ const chatSlice = createSlice({
     clearMessages(state) {
       state.messages = [];
     },
-    setTrigger(state , action:any){
+    setTrigger(state, action: any) {
       state.trigger = !state.trigger;
-    }
+    },
+    updateLastAssistantMessage: (state, action) => {
+      const lastIndex = state.messages.length - 1;
+      if (state.messages[lastIndex]?.role === "assistant") {
+        state.messages[lastIndex].content = action.payload;
+      }
+    },
   },
 });
 
-export const { addMessage, setTyping, clearMessages  , setTrigger} = chatSlice.actions;
+export const { addMessage, setTyping, clearMessages, setTrigger , updateLastAssistantMessage } =
+  chatSlice.actions;
 
 export default chatSlice.reducer;

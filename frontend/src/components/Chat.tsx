@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { Message } from "./Messages";
 import { createXai } from "@ai-sdk/xai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { experimental_createMCPClient, generateText, tool } from "ai";
+import { embed, experimental_createMCPClient, generateText, tool } from "ai";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGroq } from "@ai-sdk/groq";
@@ -13,6 +13,7 @@ import { addMessage, clearMessages } from "../store/slices/ChatReducer";
 import axios from "axios";
 import { devServer, staticLoginCred } from "../utils/constants";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
+import { Collection, DataAPIClient } from "@datastax/astra-db-ts";
 
 const loginObj = {
   username: staticLoginCred.username,
@@ -20,8 +21,11 @@ const loginObj = {
 };
 
 const systemInstruction = `
-    # you are an lounge booking agent
-    content recived should be present in formate and perfoessional manner.
+    # you are an lounge booking agent 
+    while answering try to formate the information for better readablity for user
+    
+    important - you can use inline style and html tags for beautifying the message
+   
     Current Date: ${new Date().toISOString().split("T")[0]}
 `;
 
@@ -92,8 +96,8 @@ const clientTwo = await experimental_createMCPClient({
 });
 
 const tools = await clientTwo.tools();
-const serverInstruction = await clientTwo.init();
-console.log("serverInstructions" ,  serverInstruction);
+const init = await clientTwo.init();
+console.log("serverInstruciotns ", init);
 
 const Chat = () => {
   const [input, setInput] = useState("");
@@ -128,7 +132,6 @@ const Chat = () => {
 
     setLoading(true);
     setIsTyping(true);
-
     try {
       const newMessages = [...messages, { role: "user", content: inputValue }];
       if (!bypassAddition) {
@@ -142,12 +145,41 @@ const Chat = () => {
         return rest;
       });
 
+      const userMessage = contextMessages[contextMessages.length - 1]?.content;
+
+      // 🔄 CALL BACKEND TO GET CONTEXT
+      const response = await fetch("http://localhost:5000/api/context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userMessage }),
+      });
+
+      const data = await response.json();
+      const docContext = data.context;
+      console.log(docContext , "Nikhil")
+      const template = {
+        role: "system",
+        content: `
+          please use the below context to answer users querry:
+
+          -----
+          START CONTEXT
+
+          ${docContext}
+          
+          END CONTEXT
+          -----
+          USER MESSAGE : ${userMessage}
+        `,
+      };
+
       const { text } = await generateText({
-        messages: contextMessages,
+        messages: [template , ...contextMessages],
         model: selected.instance,
         maxSteps: 5,
         maxRetries: 2,
         tools,
+        system: "you are an lounge booking agent",
         onStepFinish({ toolResults, result }) {
           toolResults.forEach((indiTool) => {
             toolCalled = {
