@@ -9,32 +9,6 @@ export const getLounge = async () => {
     };
 };
 
-// export const getSchedule = async () => {
-//     return [
-//         { flight: "AI203", departure: "10:00", arrival: "13:00", gate: "A12" },
-//         { flight: "BA142", departure: "14:30", arrival: "17:45", gate: "B4" },
-//     ];
-// };
-
-export const getReservation = async () => {
-    return [
-        {
-            id: "R001",
-            name: "John Doe",
-            lounge: "SkyLounge",
-            time: "09:30 AM",
-            confirmed: true,
-        },
-        {
-            id: "R002",
-            name: "Jane Smith",
-            lounge: "Elite Club",
-            time: "02:00 PM",
-            confirmed: false,
-        },
-    ];
-}
-
 export async function getSchedule({
     direction, airportid, traveldate
 }: {

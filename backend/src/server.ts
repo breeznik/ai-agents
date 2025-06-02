@@ -1,20 +1,15 @@
 import express from "express";
 import {
   McpServer,
-  ResourceTemplate,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse";
 import cors from "cors";
 import { z } from "zod";
-import axios from "axios";
 import { getLounge, getSchedule } from "./tools/tools";
 import dotenv from "dotenv";
 
 dotenv.config();
-
 const app = express();
-
-// Allow CORS globally (for dev)
 app.use(
   cors({
     origin: "*",
@@ -27,18 +22,7 @@ const server = new McpServer({
   version: "1.0.0",
 });
 
-server.resource(
-  "greeting",
-  new ResourceTemplate("greeting://{name}", { list: undefined }),
-  async (uri, { name }) => ({
-    contents: [
-      {
-        uri: uri.href,
-        text: `Hello, ${name}!`,
-      },
-    ],
-  })
-);
+
 
 server.tool(
   "add",
@@ -49,7 +33,7 @@ server.tool(
   })
 );
 
-server.tool("getLounge", {}, async () => {
+server.tool("getLounge", "this tool provides you the lounge namees to be selected", {}, async () => {
   const lounges = await getLounge();
   return {
     content: [
@@ -63,6 +47,7 @@ server.tool("getLounge", {}, async () => {
 
 server.tool(
   "get_schedule",
+  "this tool is provides you schedule for flight",
   {
     airportid: z.string(),
     direction: z.string(),

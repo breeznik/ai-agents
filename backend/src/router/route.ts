@@ -8,6 +8,7 @@ dotenv.config();
 const router = express.Router();
 
 const client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN!);
+
 const db = client.db(process.env.ASTRA_DB_API_ENDPOINT, {
   keyspace: process.env.ASTRA_DB_NAMESPACE,
 });

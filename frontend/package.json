@@ -17,6 +17,7 @@
     "@ai-sdk/react": "^1.2.8",
     "@ai-sdk/xai": "^1.2.11",
     "@datastax/astra-db-ts": "^2.0.1",
+    "@modelcontextprotocol/sdk": "^1.12.1",
     "@radix-ui/themes": "^3.2.1",
     "@reduxjs/toolkit": "^2.8.2",
     "@tailwindcss/vite": "^4.1.7",
