@@ -14,11 +14,11 @@ export async function getSchedule({
 }: {
     direction: string, airportid: string, traveldate: string
 }) {
-    console.log(process.env.static_username
-        , process.env.static_sessionId)
+    console.log(process.env.STATIC_USERNAME
+        , process.env.STATIC_SESSIONID)
     const request = {
-        username: process.env.static_username,
-        sessionid: process.env.static_sessionId,
+        username: process.env.STATIC_USERNAME,
+        sessionid: process.env.STATIC_SESSIONID,
         failstatus: 0,
         request: {
             direction: direction,
@@ -26,11 +26,11 @@ export async function getSchedule({
             traveldate: traveldate,
         },
     };
-    try{
+    try {
         const response = await axios.post(`${process.env.devServer}/getschedule`, request);
         return response.data.data;
-    }catch(error){
+    } catch (error) {
         console.log(error)
     }
-    return {message: "we have an error"}
+    return { message: "we have an error" }
 }

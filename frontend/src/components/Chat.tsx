@@ -213,7 +213,7 @@ const Chat = () => {
       const userMessage = contextMessages[contextMessages.length - 1]?.content;
 
       // 🔄 CALL BACKEND TO GET CONTEXT
-      const response = await fetch("http://localhost:5000/api/context", {
+      const response = await fetch("http://localhost:3000/api/context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userMessage }),
@@ -243,7 +243,7 @@ const Chat = () => {
         model: selected.instance,
         maxSteps: 5,
         maxRetries: 2,
-        ...(tools && tools),
+        tools,
         system: systemInstruction,
         onStepFinish({ toolResults, result }) {
           toolResults.forEach((indiTool) => {

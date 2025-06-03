@@ -5,7 +5,7 @@
   "main": "server.ts",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"tsx watch src/new_server.ts\" \"tsx watch src/index.ts\"",
+    "dev": "concurrently \"tsx watch src/server.ts\" ",
     "build": "tsc",
     "start": "node dist/index.js"
   },
