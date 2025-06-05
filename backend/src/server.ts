@@ -17,7 +17,6 @@ app.use(
   })
 );
 
-// app.use(express.json());
 app.get("/sse", (req, res) => mcpService.handleSSE(req, res));
 app.use("/api/context", express.json(), astraRouter);
 app.post("/messages", (req, res) => mcpService.handlePostMessage(req, res));

@@ -3,7 +3,7 @@
 
 import { useDispatch, useSelector } from "react-redux";
 import { useState } from "react";
-import { addMessage, setTrigger } from "../../store/slices/ChatReducer";
+import { addMessage, setTrigger } from "../../store/slices/chat.slice";
 const fligtScheduleFilter = (scheduleData, selectedAirline) => {
   const filteredData = scheduleData.filter((schedule) => {
     if (schedule.airline === selectedAirline) {
