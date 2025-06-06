@@ -1,7 +1,7 @@
 //@ts-nocheck
 
 import { useDispatch, useSelector } from "react-redux";
-import { addMessage, setTrigger } from "../../store/slices/ChatReducer";
+import { addMessage, setTrigger } from "../../store/slices/chat.slice";
 
 const Tabs = ({ tabs }) => {
   const { messages } = useSelector((state) => state.chat);
