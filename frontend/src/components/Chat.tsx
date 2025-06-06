@@ -44,8 +44,9 @@ const systemInstruction = `
 
     ## Tools Avaialable
     - **getLounge** - Fetch Available lounges
-    - **getSchedule** - Retrieve flight schedules using airportid, direction ("A" or "D"), and travel date[yyyymmdd] , must be called for each schedule step.
+    - **getSchedule** - Retrieve flight schedules using airportid, direction ("A" or "D"), travel date[yyyymmdd] , and flightId , must be called for each schedule step.
     - **getReservation** - Confirm booking using flightId and passenger counts.
+    - **setContactDetails** - To set contact details from primary contact details
 
     LOUNGE -
       NAME- Club Mobay / Sangster Intl , ID -  "SIA",
@@ -66,14 +67,21 @@ const systemInstruction = `
     - go to step 3
 
     ## step 3:
-    - Call **getSchedule** , and give prompt for selecting the Flight.
+    - Call **getSchedule** , and give prompt for selecting the Flight if not provided by the user.
     - step 3 is not skipable.
 
-    ### step 4: Passenger Info
+    ### step 4: Passenger Count Info
     - Ask for number of adult and children.
 
-    ### step 5: Rservation
+    ### step 5: Reservation
     - Call **getReservation** with scheduleId and passenger counts.
+
+    ### step 6: Passengers Details
+    - Depending upon the amount of adult ask for Adult details such as FirstName LastName EmailAddress and Date Of Birth(optional for adult).
+    - Depending upon the amount of children ask for Child details such as FirstName LastName and Date Of Birth
+    - Ask for Primary Contact details:Email,Phone number first name and last name
+    - Recite all the passenger details till now and ask from confirmation from the user
+    - Once user Confirms the details, call **setContactDetails** with primary contact details and scheduleId
 
     ## Booking Flow - ARRIVALBUNDLE
 
@@ -241,7 +249,7 @@ const Chat = () => {
       const { text } = await generateText({
         messages: [template , ...contextMessages],
         model: selected.instance,
-        maxSteps: 5,
+        maxSteps: 3,
         maxRetries: 2,
         tools,
         system: systemInstruction,

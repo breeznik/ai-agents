@@ -10,9 +10,9 @@ const db = client.db(process.env.ASTRA_DB_API_ENDPOINT, {
 });
 
 export const RagHandler = async (req, res) => {
-    console.log('rag handler triggred' , req.body)
+    // console.log('rag handler triggred' , req.body)
     try {
-        console.log(req)
+        // console.log(req)
         const { userMessage } = req.body;
         const embeddings = await openai.embeddings.create({
             model: "text-embedding-3-small",

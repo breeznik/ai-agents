@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse";
 import { z } from "zod";
-import { getLounge, getSchedule } from "./utils/tools";
+import { getLounge, getSchedule, reserveCart } from "./utils/tools";
 
 export class McpService {
     private server: McpServer;
@@ -47,14 +47,38 @@ export class McpService {
                 traveldate: z.string().regex(/^\d{8}$/, {
                     message: "traveldate must be in yyyymmdd format (e.g. 20250531)",
                 }),
+                flightId:z.string(),
             },
-            async ({ airportid, direction, traveldate }) => {
-                const data = await getSchedule({ airportid, direction, traveldate });
+            async ({ airportid, direction, traveldate, flightId }) => {
+                const data = await getSchedule({ airportid, direction, traveldate, flightId });
                 return {
-                    content: [{ type: "text", text: JSON.stringify(data.flightschedule) }],
+                    content: [{ type: "text", text: JSON.stringify(data) }],
                 };
             }
         );
+        
+        this.server.tool(
+         'get_reservation',
+         'this tool is used to determine if product can be reserved or if its in standby',
+         {
+            adulttickets:z.number(),
+            childtickets:z.number(),
+            arrivalscheduleid:z.number(),
+            departurescheduleid:z.number(),
+            productid:z.enum(["DEPARTURELOUNGE", "ARRIVALONLY", "ARRIVALBUNDLE"])
+         },
+        async({ adulttickets, childtickets, arrivalscheduleid, departurescheduleid, productid })=>{
+            const data = await reserveCart({ adulttickets, childtickets, arrivalscheduleid, departurescheduleid, productid })
+            return {
+                content:[{ type:"text", text: JSON.stringify(data)}]
+            }
+        })
+
+        // this.server.tool(
+        //     'set_contact_details',
+        //     'this tool is used to set contact information to contact through passenger',
+        //     {}
+        // )
     }
 
     handleSSE(req: any, res: any) {
@@ -64,7 +88,7 @@ export class McpService {
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("Connection", "keep-alive");
 
-        console.log("SSE request received" , req)
+        // console.log("SSE request received" , req)
         this.transport = new SSEServerTransport("/messages", res);
         this.server.connect(this.transport);
     }
