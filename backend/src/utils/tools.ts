@@ -39,21 +39,33 @@ export async function getSchedule({
 
 export async function reserveCart({
     adulttickets,
-    arrivalscheduleid,
     childtickets,
-    departurescheduleid,
-    productid,
+    airportid, 
+    traveldate, 
+    flightId,
+    productid
 }:{
     adulttickets:number,
-    arrivalscheduleid:number,
     childtickets:number,
-    departurescheduleid:number,
-    productid:string,
+    airportid: string, 
+    traveldate: string, 
+    flightId:string
+    productid:"DEPARTURELOUNGE"| "ARRIVALONLY"| "ARRIVALBUNDLE",
 }) {
+    console.log("hey from reserved Cart")
+    let arrivalscheduleid = 0,departurescheduleid = 0;
     if(productid === "ARRIVALONLY"){
-        departurescheduleid = 0
+        const resultFromgetSchedule =  await getSchedule({ direction:"A" ,airportid, traveldate, flightId})
+        console.log(resultFromgetSchedule,"result from schedule id")
+        arrivalscheduleid = resultFromgetSchedule[0].scheduleId
     }else if(productid === "DEPARTURELOUNGE"){
-        arrivalscheduleid = 0
+        const resultFromgetSchedule =  await getSchedule({ direction:"D" ,airportid, traveldate, flightId})
+        departurescheduleid =  resultFromgetSchedule[0].scheduleId 
+    }else{
+        let resultFromgetSchedule =  await getSchedule({ direction:"A" ,airportid, traveldate, flightId})
+        arrivalscheduleid = resultFromgetSchedule[0].scheduleId
+        resultFromgetSchedule =  await getSchedule({ direction:"D" ,airportid, traveldate, flightId})
+        departurescheduleid = resultFromgetSchedule[0].scheduleId
     }
     const request = {
         failstatus:0,
@@ -72,9 +84,9 @@ export async function reserveCart({
         }
     }
     try {
-        console.log('check before network call')
+        console.log('check before network call',request)
         const response = await axios.post(`${process.env.devServer}/reservecartitem`, request);
-        console.log(response.data.data,"response from Reserve Cart")
+        console.log(response.data,"response from Reserve Cart")
         return response.data.data;
     } catch (error) {
         console.log(error)
@@ -82,6 +94,43 @@ export async function reserveCart({
     return { message: "we have an error in reserving cart" }    
 }
 
-// export async function setContact() {
-    
-// }
+export async function setContact(
+    {
+     cartitemid,
+     email, 
+     firstname, 
+     lastname, 
+     phone, 
+    }:{
+    cartitemid:number,
+    email:string,
+    firstname:string,
+    lastname:string,
+    phone:string,
+}) {
+    const request = {
+        failstatus:0,
+        request:{
+            contact:{
+                cartitemid,
+                email,
+                firstname,
+                lastname,
+                phone,
+                title:"MR."
+            }
+        },
+        sessionid:process.env.STATIC_SESSIONID,
+        username: process.env.STATIC_USERNAME
+    }
+
+    try {
+        console.log('check before network call',request)
+        const response = await axios.post(`${process.env.devServer}/setcontact`, request);
+        console.log(response.data,"response from Reserve setcontact")
+        return {message:"your primary contacts are submitted"}
+    } catch (error) {
+        console.log(error)
+    }
+    return { message: "we have an error in reserving cart" }  
+}

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse";
 import { z } from "zod";
-import { getLounge, getSchedule, reserveCart } from "./utils/tools";
+import { getLounge, getSchedule, reserveCart, setContact } from "./utils/tools";
 
 export class McpService {
     private server: McpServer;
@@ -17,14 +17,6 @@ export class McpService {
     }
 
     private registerTools() {
-        this.server.tool(
-            "add",
-            "This function let's you add two numeric values",
-            { a: z.number(), b: z.number() },
-            async ({ a, b }) => ({
-                content: [{ type: "text", text: String(a + b) }],
-            })
-        );
 
         this.server.tool(
             "getLounge",
@@ -63,22 +55,37 @@ export class McpService {
          {
             adulttickets:z.number(),
             childtickets:z.number(),
-            arrivalscheduleid:z.number(),
-            departurescheduleid:z.number(),
+            airportid:z.string(),
+            flightId:z.string(),
+            traveldate: z.string().regex(/^\d{8}$/, {
+                message: "traveldate must be in yyyymmdd format (e.g. 20250531)",
+            }),
             productid:z.enum(["DEPARTURELOUNGE", "ARRIVALONLY", "ARRIVALBUNDLE"])
          },
-        async({ adulttickets, childtickets, arrivalscheduleid, departurescheduleid, productid })=>{
-            const data = await reserveCart({ adulttickets, childtickets, arrivalscheduleid, departurescheduleid, productid })
+        async({ adulttickets, childtickets, productid, airportid, flightId, traveldate })=>{
+            const data = await reserveCart({ adulttickets, childtickets, productid, airportid, flightId, traveldate })
             return {
                 content:[{ type:"text", text: JSON.stringify(data)}]
             }
         })
 
-        // this.server.tool(
-        //     'set_contact_details',
-        //     'this tool is used to set contact information to contact through passenger',
-        //     {}
-        // )
+        this.server.tool(
+            'set_contact_details',
+            'this tool is used to set contact information to contact through passenger',
+            {
+                cartitemid:z.number(),
+                email:z.string(),
+                firstname:z.string(),
+                lastname:z.string(),
+                phone:z.string(),
+            },
+            async({ cartitemid, email, firstname, lastname, phone })=>{
+                const data = await setContact({ cartitemid, email, firstname, lastname, phone })
+                return {
+                    content:[{ type:"text", text: JSON.stringify(data)}]
+                }
+            }
+        )
     }
 
     handleSSE(req: any, res: any) {
