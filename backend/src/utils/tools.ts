@@ -1,8 +1,8 @@
-// tools/staticData.ts
-
 import axios from "axios";
+import { encryptCardDetails, getOrCreateController } from "./utils";
+import ControllerModel from "../models/controller.model";
 
-export const getLounge = async () => {
+export const getLounge = async ({ sessionId }: { sessionId: string }) => {
     return {
         NMIA: "Club Kingston / Norman Manley Intl",
         SIA: "Club Mobay / Sangster Intl",
@@ -10,16 +10,16 @@ export const getLounge = async () => {
 };
 
 export async function getSchedule({
-    direction, airportid, traveldate , flightId
+    direction, airportid, traveldate, flightId, sessionId
 }: {
-    direction: string, airportid: string, traveldate: string, flightId:string
+    direction: string, airportid: string, traveldate: string, flightId: string, sessionId: string
 }) {
-    // console.log(process.env.STATIC_USERNAME
-    //     , process.env.STATIC_SESSIONID)
-    console.log('hey from get schedule')
+
+    const controller = await getOrCreateController(sessionId);
+
     const request = {
         username: process.env.STATIC_USERNAME,
-        sessionid: process.env.STATIC_SESSIONID,
+        sessionid: controller.bookingSteps.tempSession,
         failstatus: 0,
         request: {
             direction: direction,
@@ -29,8 +29,15 @@ export async function getSchedule({
     };
     try {
         const response = await axios.post(`${process.env.devServer}/getschedule`, request);
-        const result =  response.data.data.flightschedule.filter((flightDetail)=> flightDetail.flightId === flightId );
-        return result;      
+        const result = response.data.data.flightschedule.filter((flightDetail) => flightDetail.flightId === flightId);
+        controller.bookingSteps = controller.bookingSteps ?? {};
+        controller.bookingSteps["getSchedule"] = controller.bookingSteps["getSchedule"] ?? {};
+        controller.bookingSteps["getSchedule"][direction] = controller.bookingSteps["getSchedule"][direction] ?? {};
+
+        controller.bookingSteps["getSchedule"][direction] = result;
+
+        const responsesave = await controller.save();
+        return result;
     } catch (error) {
         console.log(error)
     }
@@ -40,97 +47,228 @@ export async function getSchedule({
 export async function reserveCart({
     adulttickets,
     childtickets,
-    airportid, 
-    traveldate, 
-    flightId,
-    productid
-}:{
-    adulttickets:number,
-    childtickets:number,
-    airportid: string, 
-    traveldate: string, 
-    flightId:string
-    productid:"DEPARTURELOUNGE"| "ARRIVALONLY"| "ARRIVALBUNDLE",
+    productid,
+    sessionId
+}: {
+    adulttickets: number,
+    childtickets: number,
+    productid: "DEPARTURELOUNGE" | "ARRIVALONLY" | "ARRIVALBUNDLE",
+    sessionId: string
 }) {
-    console.log("hey from reserved Cart")
-    let arrivalscheduleid = 0,departurescheduleid = 0;
-    if(productid === "ARRIVALONLY"){
-        const resultFromgetSchedule =  await getSchedule({ direction:"A" ,airportid, traveldate, flightId})
-        console.log(resultFromgetSchedule,"result from schedule id")
-        arrivalscheduleid = resultFromgetSchedule[0].scheduleId
-    }else if(productid === "DEPARTURELOUNGE"){
-        const resultFromgetSchedule =  await getSchedule({ direction:"D" ,airportid, traveldate, flightId})
-        departurescheduleid =  resultFromgetSchedule[0].scheduleId 
-    }else{
-        let resultFromgetSchedule =  await getSchedule({ direction:"A" ,airportid, traveldate, flightId})
-        arrivalscheduleid = resultFromgetSchedule[0].scheduleId
-        resultFromgetSchedule =  await getSchedule({ direction:"D" ,airportid, traveldate, flightId})
-        departurescheduleid = resultFromgetSchedule[0].scheduleId
+    // console.log("hey from reserved Cart")
+    const controller: any = await getOrCreateController(sessionId);
+    // console.log('controller from reserver' , controller)
+    const scheduleBuilder: any = {
+        arrivalscheduleid: 0,
+        departurescheduleid: 0,
     }
+
+    if (productid === "ARRIVALONLY" || productid === "ARRIVALBUNDLE") {
+        scheduleBuilder.arrivalscheduleid = controller.bookingSteps.getSchedule.A[0].scheduleId
+    }
+    if (productid === "DEPARTURELOUNGE" || productid === "ARRIVALBUNDLE") {
+        scheduleBuilder.departurescheduleid = controller.bookingSteps.getSchedule.D[0].scheduleId
+    }
+
+    // console.log('reservation check' , scheduleBuilder?.departurescheduleid , scheduleBuilder?.arrivalscheduleid)
     const request = {
-        failstatus:0,
-        sessionid:process.env.STATIC_SESSIONID,
+        failstatus: 0,
+        sessionid: controller.bookingSteps.tempSession,
         username: process.env.STATIC_USERNAME,
-        request:{
-            adulttickets:adulttickets,
-            arrivalscheduleid:arrivalscheduleid,
-            cartitemid:0,
-            childtickets:childtickets,
-            departurescheduleid:departurescheduleid,
-            distributorid:"",
-            paymenttype:"GUESTCARD",
-            productid:productid,
+        request: {
+            adulttickets: adulttickets,
+            arrivalscheduleid: scheduleBuilder.arrivalscheduleid,
+            cartitemid: 0,
+            childtickets: childtickets,
+            departurescheduleid: scheduleBuilder.departurescheduleid,
+            distributorid: "",
+            paymenttype: "GUESTCARD",
+            productid: productid,
             ticketsrequested: adulttickets + childtickets
         }
     }
     try {
-        console.log('check before network call',request)
         const response = await axios.post(`${process.env.devServer}/reservecartitem`, request);
-        console.log(response.data,"response from Reserve Cart")
+        controller.bookingSteps = { ...controller.bookingSteps, getReservation: response.data.data, reservationRequest: request };
+        await controller.save();
         return response.data.data;
     } catch (error) {
         console.log(error)
     }
-    return { message: "we have an error in reserving cart" }    
+    return { message: "we have an error in reserving cart" }
 }
 
 export async function setContact(
     {
-     cartitemid,
-     email, 
-     firstname, 
-     lastname, 
-     phone, 
-    }:{
-    cartitemid:number,
-    email:string,
-    firstname:string,
-    lastname:string,
-    phone:string,
-}) {
+        email,
+        firstname,
+        lastname,
+        phone,
+        sessionId
+    }: {
+        email: string,
+        firstname: string,
+        lastname: string,
+        phone: string,
+        sessionId: string
+    }) {
+
+    const controller: any = await getOrCreateController(sessionId);
+    const reseravationData: any = controller.bookingSteps["getReservation"];
+    // console.log("reseravtion data " , reseravationData)
+
     const request = {
-        failstatus:0,
-        request:{
-            contact:{
-                cartitemid,
+        failstatus: 0,
+        request: {
+            contact: {
+                cartitemid: reseravationData?.cartitemid,
                 email,
                 firstname,
                 lastname,
                 phone,
-                title:"MR."
+                title: "MR."
             }
         },
-        sessionid:process.env.STATIC_SESSIONID,
+        sessionid: controller.bookingSteps.tempSession,
         username: process.env.STATIC_USERNAME
     }
 
     try {
-        console.log('check before network call',request)
         const response = await axios.post(`${process.env.devServer}/setcontact`, request);
-        console.log(response.data,"response from Reserve setcontact")
-        return {message:"your primary contacts are submitted"}
+        console.log(response.data, "response from Reserve setcontact")
+        controller.bookingSteps = { ...controller.bookingSteps, contact: response.data.data.contact }
+        return { message: "your primary contacts are submitted" }
     } catch (error) {
         console.log(error)
     }
-    return { message: "we have an error in reserving cart" }  
+    return { message: "we have an error in reserving cart" }
+}
+
+export async function processPayment({ sessionId, cardHolder,
+    cardNumber,
+    cardType,
+    cvv,
+    expiryDate,
+    email, }: any) {
+    const controller: any = await getOrCreateController(sessionId);
+
+    const getOrderRequest = {
+        failstatus: 0,
+        request: {
+            amount: controller.bookingSteps["getReservation"].retail,
+            source: "OBI-MAIN",
+            sessionid: controller.bookingSteps.tempSession,
+            username: process.env.STATIC_USERNAME
+        }
+    }
+
+    //getorder 
+    // getorders
+    const getOrderResponse = await axios.post(`${process.env.devServer}/getorderid`, getOrderRequest);
+    controller.bookingSteps = { ...controller.bookingSteps, getOrderId: getOrderResponse.data.data }
+
+    const confirmatinRequest = {
+        "addconfirmation": {
+            "failstatus": 0,
+            "request": {
+                "affiliateid": "!",
+                "cart": [
+                    {
+                        "adulttickets": controller?.bookingSteps?.reservationRequest?.adulttickets,
+                        "amount": controller?.bookingSteps?.getReservation?.retail,
+                        "arrivalscheduleid": controller?.bookingSteps?.getReservation?.arrivalscheduleid,
+                        "cartitemid": controller?.bookingSteps?.getReservation?.cartitemid,
+                        "childtickets": controller?.bookingSteps?.reservationRequest?.childtickets,
+                        "departurescheduleid": controller?.bookingSteps?.getReservation?.arrivalscheduleid,
+                        "groupbooking": "N",
+                        "groupid": "NA",
+                        "infanttickets": 0,
+                        "optional": {
+                            "specialoccasion": null,
+                            "occasioncomment": "",
+                            "paddlename": "deafult"
+                        },
+                        "passengers": [
+                            {
+                                // passenger data goes here if available
+                            }
+                        ],
+                        "primarycontact": {
+                            "title": "MR",
+                            "firstname": controller.bookingSteps.contact.firstname,
+                            "lastname": controller.bookingSteps.contact.lastname,
+                            "email": controller.bookingSteps.contact.email,
+                            "phone": controller.bookingSteps.contact.phone
+                        },
+                        "productid": controller.bookingSteps.getReservation.productid,
+                        "referencenumber": "",
+                        "secondarycontact": {
+                            "title": "MR",
+                            "firstname": "",
+                            "lastname": "",
+                            "email": "",
+                            "phone": ""
+                        }
+                    }
+                ],
+                "distributorid": "",
+                "httpreferrer": "",
+                "orderid": controller.bookingSteps.getOrderId.orderid,
+                "payment": {
+                    "paymenttype": "GUESTCARD",
+                    "charged": "Y",
+                    "creditcard": {
+                        "amount": controller?.bookingSteps?.getReservation?.retail,
+                        "authorizationnumber": 123456,
+                        cardHolder,
+                        cardNumber,
+                        cardType,
+                        currency: "USD",
+                        email,
+                    }
+                },
+                "referrerid": "",
+                "sendconfirmation": {
+                    "sendto": controller.bookingSteps.contact.email,
+                    "copyto": ""
+                },
+                "subaffiliateid": 0,
+                "sessionid": controller.bookingSteps.tempSession,
+                "username": process.env.STATIC_USERNAME
+            }
+        }
+    }
+
+    const addConfirmationResponse = await axios.post(`${process.env.devServer}/addconfirmationlog`, confirmatinRequest);
+    let encryptedCardDetails = encryptCardDetails({
+        cardHolder,
+        cardNumber,
+        cardType,
+        cvv,
+        expiryDate,
+        email,
+    }, "H@8aAn@eTh)99]B");
+    const processCardRequest = {
+        "failstatus": 0,
+        "request": {
+            "actiontype": "CHARGECARD",
+            "creditcard": {
+                "amount": controller?.bookingSteps?.getReservation?.retail,
+                "cardholder": encryptedCardDetails.cardHolderName,
+                "cardnumber": encryptedCardDetails.cardNumber,
+                "cardtype": "VISA",
+                "cvv": encryptedCardDetails.cvv,
+                email,
+                "expirydate": encryptedCardDetails.expiryDate,
+                "iv": encryptedCardDetails.iv
+            },
+            "orderid": controller.bookingSteps.getOrderId.orderid,
+            sessionid: controller.bookingSteps.tempSession,
+            username: process.env.STATIC_USERNAME
+        }
+    }
+
+    const processCard = await axios.post(`${process.env.devServer}/processcard`, processCardRequest);
+
+
 }
