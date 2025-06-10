@@ -21,12 +21,12 @@ Each folder (in working branches) includes a `README.md` to explain its purpose,
 > Basic AI agent using LLM + System Instruction + ToolCall pattern
 
 ### `agent/mcp-llm-sysinst-tools`
-> Evolved version with backend integration via MCP + external tools + RAG for service context
+> [dropped , Moving to Langchain] Evolved version with backend integration via MCP + external tools + RAG for service context 
 
-### `feat/mcp-tools`
-> short-live feature branch for Tool Implemntation on mcp server.
+### `agent/langchain-agent`
+> langchain + MCP
 
-Use these branches to explore or contribute to specific versions.
+Use these branches to explore specific versions.
 
 ---
 
