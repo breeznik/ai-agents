@@ -77,7 +77,10 @@ export const modelOptions = {
   "gpt-4o-transcribe": {
     instance: openAI.transcription("gpt-4o-transcribe"),
     label: "gpt-4o-transcribe",
+  },
+  "gpt-4.1-2025-04-14": {
+    instance: openAI("gpt-4.1-2025-04-14"),
+    label: "gpt-4.1-2025-04-14",
   }
-
 };
 

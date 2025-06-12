@@ -103,7 +103,6 @@ export class McpService {
             },
             async ({ email, firstname, lastname, phone, }) => {
                 try {
-
                     const transportkeys = Object.keys(this.transports.sse)
                     const sessionId = transportkeys[transportkeys?.length - 1];
                     const data = await setContact({ sessionId, email, firstname, lastname, phone });
