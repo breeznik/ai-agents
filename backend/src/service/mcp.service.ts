@@ -5,13 +5,15 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { contactTool, reservationTool, scheduleTool } from "@/tools/tool.definition";
 import type { ContentBlock } from "@modelcontextprotocol/sdk/types.js";
 import type { contactSchema, reservationSchema, scheduleSchema } from "@/utils/types";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 export class McpService {
-    private server: McpServer;
+    public server: McpServer;
 
     private transports = {
         streamable: {} as Record<string, StreamableHTTPServerTransport>,
-        sse: {} as Record<string, SSEServerTransport>
+        sse: {} as Record<string, SSEServerTransport>,
+        std: {} as Record<string, StdioServerTransport>
     };
 
     constructor() {
@@ -108,6 +110,10 @@ export class McpService {
         // );
     }
 
+    public registerStdTransport(sessionId: string, transport: StdioServerTransport) {
+        this.transports.std[sessionId] = transport;
+    }
+
     async handleSSE(req: any, res: any) {
         res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
         res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -121,6 +127,13 @@ export class McpService {
         console.log('server connected to frontend via sse')
     }
 
+    async handleStd(req: any, res: any) {
+        const transport = new StdioServerTransport(req, res);
+        // Generate a unique session ID for stdio transport
+        const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        this.transports.std[sessionId] = transport;
+        this.server.connect(transport)
+    }
     handlePostMessage(req: any, res: any) {
         const sessionId = req.query.sessionId as string;
         const transport = this.transports.sse[sessionId];
