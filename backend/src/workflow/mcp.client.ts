@@ -1,16 +1,17 @@
+import { buildToolMap } from "@/utils/helpers";
 import { MultiServerMCPClient } from "@langchain/mcp-adapters";
 
+// Init MCP client
 const client = new MultiServerMCPClient({
-    mcpServers: {
-        "mcp_obi": {
-            "command": "bun",
-            "args": ["run", "src/mcp/std.server.ts"],
-            "transport": "stdio"
-        }
+  mcpServers: {
+    "local_mcp": {
+      command: 'bun',
+      args: ["run", '@/src/mcp/std.server.ts'],
+      transport: "stdio",
     }
+  }
 })
 
 
-// const llm = new ChatOpenAI({ temperature: 0.3, modelName: "gpt-4o-mini" });
-export const mcpTools = await client.getTools();
-
+export const tools = await client.getTools();
+export const toolMap = buildToolMap(tools);

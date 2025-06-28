@@ -13,7 +13,7 @@ export class McpService {
     private transports = {
         streamable: {} as Record<string, StreamableHTTPServerTransport>,
         sse: {} as Record<string, SSEServerTransport>,
-        std: {} as Record<string, StdioServerTransport>
+        std: {} as StdioServerTransport
     };
 
     constructor() {
@@ -38,7 +38,6 @@ export class McpService {
                 };
             }
         );
-
         this.server.tool(
             reservationTool.name,
             reservationTool.description,
@@ -50,8 +49,6 @@ export class McpService {
                 };
             }
         );
-
-
         this.server.tool(
             contactTool.name,
             contactTool.description,
@@ -63,55 +60,13 @@ export class McpService {
                 };
             }
         );
-
-
-
-
-        // this.server.tool(
-        //     "payment",
-        //     "this tool is used for payments",
-        //     {
-        //         cardHolder: z.string(),
-        //         cardNumber: z.number(),
-        //         cardType: z.enum(["VISA", "MASTERCARD", "AMEX"]),
-        //         cvv: z.number(),
-        //         expiryDate: z.number(),
-        //         email: z.string(),
-        //     },
-        //     async ({ cardHolder,
-        //         cardNumber,
-        //         cardType,
-        //         cvv,
-        //         expiryDate,
-        //         email, }) => {
-        //         try {
-
-        //             const transportkeys = Object.keys(this.transports.sse)
-        //             const sessionId = transportkeys[transportkeys?.length - 1];
-
-        //             const data = await processPayment({
-        //                 sessionId, cardHolder,
-        //                 cardNumber,
-        //                 cardType,
-        //                 cvv,
-        //                 expiryDate,
-        //                 email,
-        //             });
-        //             return {
-        //                 content: [{ type: "text", text: JSON.stringify(data) }],
-        //             };
-        //         } catch (error) {
-        //             console.error(error)
-        //             return {
-        //                 content: [{ type: "text", text: JSON.stringify(error) }],
-        //             };
-        //         }
-        //     }
-        // );
     }
 
-    public registerStdTransport(sessionId: string, transport: StdioServerTransport) {
-        this.transports.std[sessionId] = transport;
+    public async registerStdTransport() {
+        // std is unidrection  , not a statful protocol with sessiond handling , so no session setup required
+        const transport = new StdioServerTransport();
+        await this.server.connect(transport);
+        console.log("✅ MCP server connected over stdio");
     }
 
     async handleSSE(req: any, res: any) {
@@ -127,13 +82,7 @@ export class McpService {
         console.log('server connected to frontend via sse')
     }
 
-    async handleStd(req: any, res: any) {
-        const transport = new StdioServerTransport(req, res);
-        // Generate a unique session ID for stdio transport
-        const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        this.transports.std[sessionId] = transport;
-        this.server.connect(transport)
-    }
+
     handlePostMessage(req: any, res: any) {
         const sessionId = req.query.sessionId as string;
         const transport = this.transports.sse[sessionId];

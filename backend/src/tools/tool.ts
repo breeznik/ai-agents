@@ -36,21 +36,39 @@ export async function setContact({ email,
 export async function reserveCart({
     adulttickets,
     childtickets,
-    arrivalscheduleid = 0,
-    departurescheduleid = 0,
+    scheduleData,
     productid,
 }: reservationSchema) {
+    console.log('hey i got hit', scheduleData);
+    const scheduleBuilder = {
+        arrivalscheduleid: 0,
+        departurescheduleid: 0,
+    };
 
+    // Defensive checks for scheduleData structure
+    if ((productid === "ARRIVALONLY" || productid === "ARRIVALBUNDLE") && (!scheduleData?.A || typeof scheduleData.A.scheduleId !== 'number')) {
+        return { error: "Missing or invalid scheduleData.A.scheduleId" };
+    }
+    if ((productid === "DEPARTURELOUNGE" || productid === "ARRIVALBUNDLE") && (!scheduleData?.D || typeof scheduleData.D.scheduleId !== 'number')) {
+        return { error: "Missing or invalid scheduleData.D.scheduleId" };
+    }
+
+    if (productid === "ARRIVALONLY" || productid === "ARRIVALBUNDLE") {
+        scheduleBuilder.arrivalscheduleid = scheduleData.A.scheduleId;
+    }
+    if (productid === "DEPARTURELOUNGE" || productid === "ARRIVALBUNDLE") {
+        scheduleBuilder.departurescheduleid = scheduleData.D.scheduleId;
+    }
     const request = {
         failstatus: 0,
         sessionid: process.env.STATIC_SESSIONID,
         username: process.env.STATIC_USERNAME,
         request: {
             adulttickets: adulttickets,
-            arrivalscheduleid,
+            arrivalscheduleid: scheduleBuilder.arrivalscheduleid,
             cartitemid: 0,
             childtickets: childtickets,
-            departurescheduleid,
+            departurescheduleid: scheduleBuilder.departurescheduleid,
             distributorid: "",
             paymenttype: "GUESTCARD",
             productid: productid,
@@ -91,9 +109,10 @@ export async function getSchedule({
             request
         );
         const result = response?.data?.data?.flightschedule?.filter(
-            (flightDetail:any) => flightDetail?.flightId === flightId
+            (flightDetail: any) => flightDetail?.flightId === flightId
         );
-        return result;
+        console.log('tool result', result)
+        return result[0];
     } catch (error) {
         console.log(error);
     }

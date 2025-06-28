@@ -13,8 +13,7 @@ const scheduleSchemaObj = {
 const reservationSchemaObj = {
     adulttickets: z.number(),
     childtickets: z.number(),
-    arrivalscheduleid: z.number(),
-    departurescheduleid: z.number(),
+    scheduleData: z.object({}),
     productid: z.enum(["DEPARTURELOUNGE", "ARRIVALONLY", "ARRIVALBUNDLE"]),
 }
 const contactSchemaObj = {
@@ -30,7 +29,6 @@ export const scheduleTool = {
     description: "This tool validates the client flight schedule with the flights schedule avaialble in service",
     paramsSchema: scheduleSchemaObj,
     cb: async ({ airportid, direction, traveldate, flightId }: scheduleSchema) => {
-
         const data = await getSchedule({
             airportid,
             direction,
@@ -48,8 +46,8 @@ export const reservationTool = {
     name: "reserveLounge",
     description: "this tool determines if the reservation can be done for the specified lounge at the given schedule",
     paramsSchema: reservationSchemaObj,
-    cb: async ({ adulttickets, childtickets, arrivalscheduleid, departurescheduleid, productid }: reservationSchema) => {
-        const data = await reserveCart({ adulttickets, childtickets, arrivalscheduleid, departurescheduleid, productid });
+    cb: async ({ adulttickets, childtickets, scheduleData, productid }: reservationSchema) => {
+        const data = await reserveCart({ adulttickets, childtickets, scheduleData, productid });
         return {
             content: [{ type: "text", text: JSON.stringify(data) }],
         };

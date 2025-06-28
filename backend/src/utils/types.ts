@@ -13,8 +13,7 @@ export type contactSchema = {
 export type reservationSchema = {
     adulttickets: number;
     childtickets: number;
-    arrivalscheduleid: number,
-    departurescheduleid: number,
+    scheduleData: any,
     productid: "DEPARTURELOUNGE" | "ARRIVALONLY" | "ARRIVALBUNDLE";
 }
 
@@ -24,3 +23,4 @@ export type scheduleSchema = {
     traveldate: string;
     flightId: any;
 }
+
