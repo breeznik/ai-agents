@@ -42,7 +42,7 @@ export class McpService {
             reservationTool.name,
             reservationTool.description,
             reservationTool.paramsSchema,
-            async (args: reservationSchema, extra: any) => {
+            async (args: any, extra: any) => {
                 const result = await reservationTool.cb(args);
                 return {
                     content: result.content as [ContentBlock]

@@ -47,7 +47,7 @@ export async function reserveCart({
 
     // Defensive checks for scheduleData structure
     if ((productid === "ARRIVALONLY" || productid === "ARRIVALBUNDLE") && (!scheduleData?.A || typeof scheduleData.A.scheduleId !== 'number')) {
-        return { error: "Missing or invalid scheduleData.A.scheduleId" };
+        return { error: "Missing or invalid scheduleData.A.scheduleId"  , scheduleData , adulttickets , childtickets , productid};
     }
     if ((productid === "DEPARTURELOUNGE" || productid === "ARRIVALBUNDLE") && (!scheduleData?.D || typeof scheduleData.D.scheduleId !== 'number')) {
         return { error: "Missing or invalid scheduleData.D.scheduleId" };

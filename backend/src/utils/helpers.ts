@@ -2,7 +2,7 @@ export function buildToolMap(tools: Array<{ name: string }>) {
   const toolMap: Record<string, (typeof tools)[number]> = {};
 
   tools.forEach((tool) => {
-    const shortName = tool.name.replace(/^mcp__mcp_local__/, "");
+    const shortName = tool.name.replace(/^mcp__local_mcp__/, "");
     toolMap[shortName] = tool;
   });
 

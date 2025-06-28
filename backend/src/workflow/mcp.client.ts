@@ -6,7 +6,7 @@ const client = new MultiServerMCPClient({
   mcpServers: {
     "local_mcp": {
       command: 'bun',
-      args: ["run", '@/src/mcp/std.server.ts'],
+      args: ["run", '/src/mcp/std.server.ts'],
       transport: "stdio",
     }
   }
@@ -15,3 +15,4 @@ const client = new MultiServerMCPClient({
 
 export const tools = await client.getTools();
 export const toolMap = buildToolMap(tools);
+console.log(toolMap)

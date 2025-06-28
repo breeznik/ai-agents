@@ -13,7 +13,7 @@ export type contactSchema = {
 export type reservationSchema = {
     adulttickets: number;
     childtickets: number;
-    scheduleData: any,
+    scheduleData: any | null,
     productid: "DEPARTURELOUNGE" | "ARRIVALONLY" | "ARRIVALBUNDLE";
 }
 

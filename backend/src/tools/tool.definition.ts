@@ -13,7 +13,7 @@ const scheduleSchemaObj = {
 const reservationSchemaObj = {
     adulttickets: z.number(),
     childtickets: z.number(),
-    scheduleData: z.object({}),
+    scheduleData: z.any(),
     productid: z.enum(["DEPARTURELOUNGE", "ARRIVALONLY", "ARRIVALBUNDLE"]),
 }
 const contactSchemaObj = {

@@ -96,15 +96,15 @@ const scheduleStep = async (state) => {
 const reserveStep = async (state) => {
   console.log(state);
   const direction = state.productid === "ARRIVALONLY" ? "A" : "D";
-  console.log('reserposen payload', state)
+  console.log('reserposen payload', state.scheduleData)
   const response = await toolMap["reserveLounge"].func({
     adulttickets: state.collected[direction].tickets.childtickets,
     childtickets: state.collected[direction].tickets.adulttickets,
-    scheduleData: { A: state.scheduleData.A, D: null },
+    scheduleData: state.scheduleData,
     productid: state.productid,
   });
   console.log("reserver response : ", response);
-  return { reseravationData: response, currentNode: "reservation" };
+  return { reseravationData: await jsonParser(response[0]), currentNode: "reservation" };
 };
 
 const answerGeneral = async (state) => {
@@ -210,9 +210,13 @@ const contactHandler = async (state) => {
   };
 };
 const setContactStep = async (state) => {
+  console.log(state)
   const response = await toolMap["setcontact"].func({
-    ...state.contactInfo,
-    reseravationData: state.reseravationData.cartitemid,
+    firstname: state.contactInfo.firstname,
+    lastname: state.contactInfo.lastname,
+    email: state.contactInfo.email,
+    phone: state.contactInfo.phone,
+    cartitemid: state.reseravationData.cartitemid,
   });
   console.log("setcontact response ", response);
   return {};
@@ -237,7 +241,7 @@ graph.addNode("scheduleinfo", infoCollector);
 graph.addNode("contactinfo", contactHandler);
 graph.addNode("setcontact", setContactStep);
 graph.addNode("productend", productSuccess);
-graph.addNode("paymenthadnler", () => { });
+graph.addNode("paymenthadnler", (state) => {});
 // graph.addNode("callapayment", callpayment);
 graph.addConditionalEdges(START, (state) => {
   return currentNode || "classify";
@@ -258,12 +262,6 @@ graph.addConditionalEdges("scheduleinfo", (state) => {
 
 graph.addConditionalEdges("contactinfo", (state) => {
   return state.done ? "setcontact" : "contactinfo";
-});
-
-graph.addEdge("setcontact", "paymenthadnler");
-
-graph.addConditionalEdges("paymenthadnler", (state) => {
-  state.done ? "callpaymnet" : "paymenthadnler";
 });
 
 graph.addEdge("general", END);
