@@ -14,7 +14,9 @@
     "build": "bun build src/index.ts --outdir dist",
     "start": "node dist/index.js",
     "typecheck": "bun typecheck",
-    "lint": "bun run eslint src --ext .ts"
+    "lint": "bun run eslint src --ext .ts",
+    "flow": "bun ./src/workflow/booking.flow.ts",
+    "inspector": "npx @modelcontextprotocol/inspector bun  src/mcp/std.server.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -25,10 +27,12 @@
   "dependencies": {
     "@langchain/langgraph": "^0.3.4",
     "@langchain/mcp-adapters": "^0.5.2",
+    "@langchain/ollama": "^0.2.3",
     "@langchain/openai": "^0.5.14",
     "@modelcontextprotocol/sdk": "^1.13.0",
     "axios": "^1.10.0",
     "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "langchain": "^0.3.29",

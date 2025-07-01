@@ -5,10 +5,12 @@ import dotenv from "dotenv";
 import z from "zod";
 import * as readline from "node:readline/promises";
 
-import { jsonParser } from "@/utils/helpers.js";
-import { agent_intro, classifyInstruction, contactInfoInstruction, indiScheduleInstruction, productTypeInstruction } from "@/utils/instructions.js";
+import { jsonParser, parseLLMResponse } from "@/utils/helpers.js";
+import { agent_intro, classifyInstruction, contactInfoInstruction, indiScheduleInstruction, PaymentProcessingInformation, productTypeInstruction } from "@/utils/instructions.js";
 import { interrupt } from "@langchain/langgraph";
 import { toolMap } from "./mcp.client";
+import axios from "axios";
+import { createAgent, localLLM } from "./local.llm";
 
 export const terminal = readline.createInterface({
   input: process.stdin,
@@ -27,6 +29,7 @@ const llm = new ChatOpenAI({
 });
 
 const stateSchema = z.object({
+  sessionid: z.string(),
   input: z.string(),
   flow: z.enum(["booking", "general"]),
   done: z.boolean(),
@@ -40,6 +43,10 @@ const stateSchema = z.object({
     D: z.any(),
   }),
   productid: z.enum(["ARRIVALONLY", "DEPARTURE", "ARRIVALBUNDLE"]),
+  passengerDetails: z.object({
+    adults: z.any(),
+    children: z.any()
+  }),
   contactInfo: z.object({
     title: z.string(),
     firstname: z.string(),
@@ -48,7 +55,10 @@ const stateSchema = z.object({
     phone: z.string(),
   }),
   reseravationData: z.any(),
+  paymentInformation: z.any(),
   messages: z.array(),
+  paymentHtml: z.string().optional(),
+  confirmCart: z.any()
 });
 
 const classify = async (state) => {
@@ -77,11 +87,11 @@ const scheduleStep = async (state) => {
     state.productid === "ARRIVALONLY" ||
     state.productid === "ARRIVALBUNDLE"
   ) {
-    responseHandler["A"] = await toolMap["getSchedule"].func(state.collected.A);
+    responseHandler["A"] = await toolMap["getSchedule"].func({ ...state.collected.A, sessionid: state.sessionid });
     responseHandler["A"] = await jsonParser(responseHandler["A"][0])
   }
   if (state.productid === "DEPARTURE" || state.productid === "ARRIVALBUNDLE") {
-    responseHandler["D"] = await toolMap["getSchedule"].func(state.collected.D);
+    responseHandler["D"] = await toolMap["getSchedule"].func({ ...state.collected.D, sessionid: state.sessionid });
     responseHandler["D"] = await jsonParser(responseHandler["D"][0])
   }
 
@@ -101,7 +111,8 @@ const reserveStep = async (state) => {
     adulttickets: state.collected[direction].tickets.childtickets,
     childtickets: state.collected[direction].tickets.adulttickets,
     scheduleData: state.scheduleData,
-    productid: state.productid,
+    productid: state.productid
+    , sessionid: state.sessionid
   });
   console.log("reserver response : ", response);
   return { reseravationData: await jsonParser(response[0]), currentNode: "reservation" };
@@ -161,7 +172,6 @@ const infoCollector = async (state) => {
     done = isArrivalDone && isDepartureDone;
   }
 
-  // console.log("state done : ", done, updatedCollected);
   return {
     done,
     collected: updatedCollected,
@@ -180,7 +190,20 @@ const productType = async (state) => {
   if (!parsed?.done) {
     return interrupt({ prompt: parsed.message });
   }
+
+  const loginReq = {
+    failstatus: 0,
+    request: {
+      getpaymentgateway: "Y",
+      languageid: 'en',
+      marketid: 'JAM',
+      password: process.env.STATIC_PASSWORD,
+      username: process.env.STATIC_USERNAME
+    }
+  }
+  const sessionid = await axios.post(`${process.env.DEVSERVER}/login`, loginReq)
   return {
+    sessionid: sessionid.data.data.sessionid,
     done: parsed.done,
     collected: { ...state.collected, productid: parsed.collected.productid },
     productid: parsed.collected.productid,
@@ -206,6 +229,7 @@ const contactHandler = async (state) => {
   return {
     done: parsed.done,
     contactInfo: parsed.contact,
+    passengerDetails: parsed.passengerDetails,
     currentNode: "contactinfo",
   };
 };
@@ -217,6 +241,7 @@ const setContactStep = async (state) => {
     email: state.contactInfo.email,
     phone: state.contactInfo.phone,
     cartitemid: state.reseravationData.cartitemid,
+    sessionid: state.sessionid
   });
   console.log("setcontact response ", response);
   return {};
@@ -226,6 +251,38 @@ const productSuccess = async (state) => {
   console.log("congrats your product is booked");
   return {};
 };
+
+const callpayment = async (state) => {
+  let response = await toolMap["payment"].func({ state });
+  // response = await jsonParser(response);
+  console.log("payment response" , response)
+  console.log("callpayment response ", response);
+  
+  return { }
+};
+
+
+const paymentHandler = async (state) => {
+  const userMessage = messageObj("user", state.input);
+  memory.push(userMessage)
+  currentNode = 'paymentinfo';
+  const prompt = `${agent_intro} ${PaymentProcessingInformation}`;
+  const response = await localLLM.invoke([userMessage, messageObj("system", prompt)]);
+  console.log('local llm' , response)
+  let parsed = await jsonParser(response.content);
+
+  memory.push(messageObj("assistant", parsed.message));
+
+  if (!parsed?.done) {
+    return interrupt({ prompt: parsed.message });
+  }
+
+  return {
+    done: parsed.done,
+    paymentInformation: parsed.paymentInformation,
+    currentNode: "paymentinfo"
+  }
+}
 
 const graph = new StateGraph({
   state: stateSchema,
@@ -241,8 +298,8 @@ graph.addNode("scheduleinfo", infoCollector);
 graph.addNode("contactinfo", contactHandler);
 graph.addNode("setcontact", setContactStep);
 graph.addNode("productend", productSuccess);
-graph.addNode("paymenthadnler", (state) => {});
-// graph.addNode("callapayment", callpayment);
+graph.addNode("paymentinfo", paymentHandler)
+graph.addNode("callpayment", callpayment);
 graph.addConditionalEdges(START, (state) => {
   return currentNode || "classify";
 });
@@ -263,12 +320,16 @@ graph.addConditionalEdges("scheduleinfo", (state) => {
 graph.addConditionalEdges("contactinfo", (state) => {
   return state.done ? "setcontact" : "contactinfo";
 });
+graph.addConditionalEdges("paymentinfo", (state) => {
+  return state.done ? "callpayment" : "paymentinfo"
+});
 
 graph.addEdge("general", END);
 graph.addEdge("schedulecall", "reservation");
 graph.addEdge("reservation", "contactinfo");
-graph.addEdge("setcontact", "productend");
-graph.addEdge("productend", END);
+graph.addEdge("setcontact", "paymentinfo");
+graph.addEdge("callpayment", "productend")
+graph.addEdge("productend", END)
 
 export const compiledGraph = graph.compile({
   checkpointer: new MemorySaver(),

@@ -2,9 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { contactTool, reservationTool, scheduleTool } from "@/tools/tool.definition";
+import { contactTool, paymentTool, reservationTool, scheduleTool } from "@/tools/tool.definition";
 import type { ContentBlock } from "@modelcontextprotocol/sdk/types.js";
-import type { contactSchema, reservationSchema, scheduleSchema } from "@/utils/types";
+import type { contactSchema, paymentSchema, reservationSchema, scheduleSchema } from "@/utils/types";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 export class McpService {
@@ -55,6 +55,17 @@ export class McpService {
             contactTool.paramsSchema,
             async (args: contactSchema) => {
                 const result = await contactTool.cb(args);
+                return {
+                    content: result.content as [ContentBlock]
+                };
+            }
+        );
+        this.server.tool(
+            paymentTool.name,
+            paymentTool.description,
+            paymentTool.paramsSchema,
+            async (args: any) => {
+                const result = await paymentTool.cb(args);
                 return {
                     content: result.content as [ContentBlock]
                 };

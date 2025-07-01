@@ -8,6 +8,7 @@ export type contactSchema = {
     lastname: string;
     phone: string;
     cartitemid: number;
+    sessionid:string;
 }
 
 export type reservationSchema = {
@@ -15,6 +16,7 @@ export type reservationSchema = {
     childtickets: number;
     scheduleData: any | null,
     productid: "DEPARTURELOUNGE" | "ARRIVALONLY" | "ARRIVALBUNDLE";
+    sessionid:string;
 }
 
 export type scheduleSchema = {
@@ -22,5 +24,9 @@ export type scheduleSchema = {
     airportid: "SIA" | "NMIA";
     traveldate: string;
     flightId: any;
+    sessionid:string;
 }
 
+export type paymentSchema = {
+    state:any
+}
