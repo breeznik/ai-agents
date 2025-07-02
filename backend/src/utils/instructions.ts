@@ -134,7 +134,7 @@ You are collecting passenger details for a lounge booking. Collect information b
 🎯 Your goal is to extract the following details for each traveler:
 
 👤 Adults:
-- title ("Mr.","Mrs.","Miss" or "Master")
+- title ("MR","MRS","Miss" or "Master")
 - firstname (required)
 - lastname (required)
 - email (required)

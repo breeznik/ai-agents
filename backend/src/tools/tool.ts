@@ -19,20 +19,20 @@ export async function setContact({ email,
                 title: "MR.",
             },
         },
-        sessionid: process.env.STATIC_SESSIONID,
+        sessionid: sessionid,
         username: process.env.STATIC_USERNAME,
     };
 
     try {
         const response = await axios.post(
-            `${process.env.devServer}/setcontact`,
+            `${process.env.DEVSERVER}/setcontact`,
             request
         );
         return "your primary contacts are submitted";
     } catch (error) {
         console.log(error);
     }
-    return "we have an error in reserving cart";
+    return "we have an error in setting contact";
 }
 
 export async function reserveCart({
@@ -40,6 +40,7 @@ export async function reserveCart({
     childtickets,
     scheduleData,
     productid,
+    sessionid
 }: reservationSchema) {
     console.log('hey i got hit', scheduleData);
     const scheduleBuilder = {
@@ -63,7 +64,7 @@ export async function reserveCart({
     }
     const request = {
         failstatus: 0,
-        sessionid: process.env.STATIC_SESSIONID,
+        sessionid: sessionid,
         username: process.env.STATIC_USERNAME,
         request: {
             adulttickets: adulttickets,
@@ -79,7 +80,7 @@ export async function reserveCart({
     };
     try {
         const response = await axios.post(
-            `${process.env.devServer}/reservecartitem`,
+            `${process.env.DEVSERVER}/reservecartitem`,
             request
         );
         return response.data.data;
@@ -94,10 +95,11 @@ export async function getSchedule({
     airportid,
     traveldate,
     flightId,
+    sessionid
 }: scheduleSchema) {
     const request = {
         username: process.env.STATIC_USERNAME,
-        sessionid: process.env.STATIC_SESSIONID,
+        sessionid: sessionid,
         failstatus: 0,
         request: {
             direction: direction,
@@ -131,6 +133,8 @@ export async function processPayment(state: any) {
         sessionid
     }
 
+    const titleSanitizer = (title) => (title.trim().replace(/\./g, '').toUpperCase())
+
     const getCartItems = await axios.post(`${process.env.DEVSERVER}/getcartitems`, getCartItemsReq)
 
     const adulttickets = state.collected?.A?.tickets ? state.collected.A.tickets.adulttickets : state.collected.D.tickets.adulttickets
@@ -145,7 +149,7 @@ export async function processPayment(state: any) {
             lastname: state.passengerDetails.adults[i].lastname,
             passengertype: "ADULT",
             phone: state.contactInfo.phone,
-            title: state.passengerDetails.adults[i].title,
+            title: titleSanitizer(state.passengerDetails.adults[i].title),
         });
     }
     for (let i = 0; i < childtickets; i++) {
@@ -156,7 +160,7 @@ export async function processPayment(state: any) {
             lastname: state.passengerDetails.children[i].lastname,
             passengertype: "CHILD",
             phone: state.contactInfo.phone,
-            title: state.passengerDetails.children[i].title
+            title: titleSanitizer(state.passengerDetails.children[i].title)
         })
     }
     const orderReq = {
