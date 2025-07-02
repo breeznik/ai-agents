@@ -108,8 +108,8 @@ const reserveStep = async (state) => {
   const direction = state.productid === "ARRIVALONLY" ? "A" : "D";
   console.log('reserposen payload', state.scheduleData)
   const response = await toolMap["reserveLounge"].func({
-    adulttickets: state.collected[direction].tickets.childtickets,
-    childtickets: state.collected[direction].tickets.adulttickets,
+    adulttickets: state.collected[direction].tickets.adulttickets,
+    childtickets: state.collected[direction].tickets.childtickets,
     scheduleData: state.scheduleData,
     productid: state.productid
     , sessionid: state.sessionid
@@ -267,7 +267,7 @@ const paymentHandler = async (state) => {
   memory.push(userMessage)
   currentNode = 'paymentinfo';
   const prompt = `${agent_intro} ${PaymentProcessingInformation}`;
-  const response = await localLLM.invoke([userMessage, messageObj("system", prompt)]);
+  const response = await llm.invoke([userMessage, messageObj("system", prompt)]);
   console.log('local llm' , response)
   let parsed = await jsonParser(response.content);
 

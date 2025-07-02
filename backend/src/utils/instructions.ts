@@ -141,7 +141,7 @@ You are collecting passenger details for a lounge booking. Collect information b
 - dob (optional)
 
 🧒 Children:
-- title ("Master","Miss","Mrs." or "Mr.")
+- title ("Master","Miss","MRS" or "MR")
 - firstname (required)
 - lastname (required)
 - dob (required)
@@ -177,7 +177,7 @@ You are collecting passenger details for a lounge booking. Collect information b
   "passengerDetails":{
     "adults":[
       {
-        "title":"Mr."|"Mrs."|"Miss" | "Master",
+        "title":"MR"|"MRS"|"Miss" | "Master",
         "firstname":string,
         "lastname":string,
         "email":string,
@@ -186,7 +186,7 @@ You are collecting passenger details for a lounge booking. Collect information b
     ],
     "children":[
       {
-        "title":"Mr."|"Mrs."|"Miss" | "Master",
+        "title":"MR"|"MRS"|"Miss" | "Master",
         "firstname":string,
         "lastname":string,
         "dob":string
