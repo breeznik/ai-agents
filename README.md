@@ -17,14 +17,14 @@ Each folder (in working branches) includes a `README.md` to explain its purpose,
 
 ## 🧠 Active Agent Branches
 
-### `agent/llm-sysinst-tools`
+### `agent/aisdk`
 > Basic AI agent using LLM + System Instruction + ToolCall pattern
 
-### `agent/mcp-llm-sysinst-tools`
-> [dropped , Moving to Langchain] Evolved version with backend integration via MCP + external tools + RAG for service context 
+### `agent/mcp-aisdk`
+> [dropped , Moving to langgraph] Evolved version with backend integration via MCP + external tools + RAG for service context 
 
-### `agent/langchain-agent`
-> langchain + MCP
+### `master`
+> langgraph + typescript sdk(MCP) + ollama
 
 Use these branches to explore specific versions.
 
