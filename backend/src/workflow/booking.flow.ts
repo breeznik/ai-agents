@@ -154,7 +154,7 @@ const reserveStep = async (state) => {
     productid: state.productid, 
     sessionid: state.sessionid
   });
-  console.log("reserver response : ", response);
+  // console.log("reserver response : ", response);
   const reseravationData = await jsonParser(response[0]);
   return { 
     reseravationData: reseravationData, 
@@ -347,7 +347,7 @@ const contactHandler = async (state) => {
     [state.currentCartId]: cartItems
   }
 
-  console.log("Contact handler cart:", cart);
+  // console.log("Contact handler cart:", cart);
 
 
   return {
@@ -402,7 +402,6 @@ const carthandler = async (state) => {
   const response = await llm.invoke([...memory, messageObj("system", prompt)]);
   let parsed = await jsonParser(response.content);
   memory.push(messageObj("assistant", parsed.message));
-  console.log("cart confirmation response", totalAmount);
   if (!parsed?.done) {
     return interrupt({ prompt: parsed.message });
   }
@@ -414,7 +413,7 @@ const carthandler = async (state) => {
   }
 
 
-  console.log("cart handler State::",state)
+  // console.log("cart handler State::",state)
 
   return{
     done: parsed.done,
@@ -542,7 +541,7 @@ async function run(input, previousState = {}) {
     });
   }
 
-  console.log("🎯 Final State:", state);
+  // console.log("🎯 Final State:", state);
 }
 // --- Main Loop ---
 async function mainLoop() {

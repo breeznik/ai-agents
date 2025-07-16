@@ -15,4 +15,4 @@ const client = new MultiServerMCPClient({
 
 export const tools = await client.getTools();
 export const toolMap = buildToolMap(tools);
-console.log(toolMap)
+// console.log(toolMap)
