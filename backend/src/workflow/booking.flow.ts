@@ -4,9 +4,8 @@ import { ChatOpenAI } from "@langchain/openai";
 import dotenv from "dotenv";
 import z from "zod";
 import * as readline from "node:readline/promises";
-
-import { jsonParser, parseLLMResponse } from "@/utils/helpers.js";
-import { agent_intro, classifyInstruction, contactInfoInstruction, indiScheduleInstruction, PaymentProcessingInformation, productTypeInstruction } from "@/utils/instructions.js";
+import { jsonParser, normalizeToYYYYMMDD, parseLLMResponse, titleSanitizer } from "@/utils/helpers.js";
+import { agent_intro, BookingConfirmationInstruction, bundleInstruction, classifyInstruction, contactInfoInstruction, indiScheduleInstruction, PaymentProcessingInformation, productTypeInstruction } from "@/utils/instructions.js";
 import { interrupt } from "@langchain/langgraph";
 import { toolMap } from "./mcp.client";
 import axios from "axios";
@@ -18,8 +17,8 @@ export const terminal = readline.createInterface({
 });
 
 dotenv.config();
-let currentNode = null;
-const memory = [];
+// let currentNode = null;
+let memory = [];
 const messageObj = (role, input) => ({ role, content: input });
 
 // --- LLM Setup ---
@@ -28,33 +27,71 @@ const llm = new ChatOpenAI({
   modelName: "gpt-4o",
 });
 
+const cartDataSchema = z.object({
+  adulttickets: z.number(),
+  amount: z.number(),
+  arrivalscheduleid: z.number(),
+  cartitemid: z.number(),
+  childtickets: z.number(),
+  departurescheduleid: z.number(),
+  groupbooking: z.enum(["Y", "N"]),
+  groupid: z.string(),
+  infanttickets: z.number(),
+  optional: z.object({
+    occasioncomment: z.string(),
+    paddlename: z.string(),
+    specialoccasion: z.string(),
+  }),
+  passengers: z.array(z.object({
+    dob: z.string(),
+    email: z.string(),
+    firstname: z.string(),
+    lastname: z.string(),
+    passengertype: z.enum(["ADULT", "CHILD", "INFANT"]),
+    phone: z.string(),
+    title: z.enum(["MR", "MRS", "MISS", "MASTER"]),
+  })),
+  primarycontact: z.object({
+    email: z.string(),
+    firstname: z.string(),
+    lastname: z.string(),
+    phone: z.string(),
+    title: z.enum(["MR", "MRS", "MISS", "MASTER"]),
+  }),
+  productid: z.enum(["ARRIVALONLY", "DEPARTURELOUNGE", "ARRIVALBUNDLE"]),
+  referencenumber: z.string(),
+  secondarycontact: z.object({
+    email: z.string(),
+    firstname: z.string(),
+    lastname: z.string(),
+    phone: z.string(),
+    title: z.enum(["MR", "MRS", "MISS", "MASTER"]),
+  })
+});
+
 const stateSchema = z.object({
   sessionid: z.string(),
   input: z.string(),
   flow: z.enum(["booking", "general"]),
   done: z.boolean(),
   currentNode: z.string().optional(), // <--- NEW
+  cart: z.record(z.string(),cartDataSchema),
+  currentCartId: z.number().default(0),
+  totalAmount: z.number(),
   collected: z.object({
     A: z.any(),
     D: z.any(),
+  }).default({
+    A: null,
+    D: null,
   }),
   scheduleData: z.object({
     A: z.any(),
     D: z.any(),
   }),
-  productid: z.enum(["ARRIVALONLY", "DEPARTURE", "ARRIVALBUNDLE"]),
-  passengerDetails: z.object({
-    adults: z.any(),
-    children: z.any()
-  }),
-  contactInfo: z.object({
-    title: z.string(),
-    firstname: z.string(),
-    lastname: z.string(),
-    email: z.string(),
-    phone: z.string(),
-  }),
+  productid: z.enum(["ARRIVALONLY", "DEPARTURELOUNGE", "ARRIVALBUNDLE", ""]).default(""),
   reseravationData: z.any(),
+  proceedToPayment: z.boolean(),
   paymentInformation: z.any(),
   messages: z.array(),
   paymentHtml: z.string().optional(),
@@ -71,9 +108,9 @@ const classify = async (state) => {
   memory.push(userMessage);
 
   const res = await llm.invoke([...memory, prompt]);
-  console.log(res.content);
+  // console.log(res.content);
   const flow = res.content.toLowerCase();
-  console.log("llm flow : ", flow);
+  // console.log("llm flow : ", flow);
 
   return { flow };
 };
@@ -90,12 +127,11 @@ const scheduleStep = async (state) => {
     responseHandler["A"] = await toolMap["getSchedule"].func({ ...state.collected.A, sessionid: state.sessionid });
     responseHandler["A"] = await jsonParser(responseHandler["A"][0])
   }
-  if (state.productid === "DEPARTURE" || state.productid === "ARRIVALBUNDLE") {
+  if (state.productid === "DEPARTURELOUNGE" || state.productid === "ARRIVALBUNDLE") {
     responseHandler["D"] = await toolMap["getSchedule"].func({ ...state.collected.D, sessionid: state.sessionid });
     responseHandler["D"] = await jsonParser(responseHandler["D"][0])
   }
-
-  console.log("respionse getschedule", responseHandler)
+  // console.log("response getschedule", responseHandler)
   return {
     done: true,
     scheduleData: responseHandler,
@@ -104,18 +140,27 @@ const scheduleStep = async (state) => {
 };
 
 const reserveStep = async (state) => {
-  console.log(state);
+  if(state.reseravationData){
+    return {
+      currentNode: "reservation"
+    }
+  }
   const direction = state.productid === "ARRIVALONLY" ? "A" : "D";
-  console.log('reserposen payload', state.scheduleData)
+
   const response = await toolMap["reserveLounge"].func({
     adulttickets: state.collected[direction].tickets.adulttickets,
     childtickets: state.collected[direction].tickets.childtickets,
     scheduleData: state.scheduleData,
-    productid: state.productid
-    , sessionid: state.sessionid
+    productid: state.productid, 
+    sessionid: state.sessionid
   });
   console.log("reserver response : ", response);
-  return { reseravationData: await jsonParser(response[0]), currentNode: "reservation" };
+  const reseravationData = await jsonParser(response[0]);
+  return { 
+    reseravationData: reseravationData, 
+    currentNode: "reservation",
+    currentCartId: reseravationData.cartitemid,
+   };
 };
 
 const answerGeneral = async (state) => {
@@ -123,12 +168,12 @@ const answerGeneral = async (state) => {
   const asistantMessage = messageObj("assistant", res.content);
   memory.push(asistantMessage);
 
-  console.log("general answer : ", res.content);
-  return {};
+  // console.log("general answer : ", res.content);
+  return {productid:''};
 };
 
 const infoCollector = async (state) => {
-  currentNode = "scheduleinfo";
+  // currentNode = "scheduleinfo";
   const isBundle = state.productid === "ARRIVALBUNDLE";
   let currentDirection;
 
@@ -148,9 +193,10 @@ const infoCollector = async (state) => {
   memory.push(userMessage);
 
   const response = await llm.invoke([...memory, messageObj("system", prompt)]);
+  // const response = await llm.invoke([messageObj("system", prompt)]);
   let parsed = await jsonParser(response.content);
 
-  // console.log("🔍 Parsed object:", parsed);
+  // console.log("🔍 Parsed object of schedule info:", parsed);
 
   memory.push(messageObj("assistant", parsed.message));
 
@@ -180,7 +226,7 @@ const infoCollector = async (state) => {
 };
 
 const productType = async (state) => {
-  currentNode = "startBooking";
+  // currentNode = "startBooking";
   const prompt = `${agent_intro} ${productTypeInstruction}`;
   const userMessage = messageObj("user", state.input);
   const systemMessage = messageObj("system", prompt);
@@ -190,23 +236,28 @@ const productType = async (state) => {
   if (!parsed?.done) {
     return interrupt({ prompt: parsed.message });
   }
+  // console.log("productID::", state.productid,parsed.productid);
 
-  const loginReq = {
-    failstatus: 0,
-    request: {
-      getpaymentgateway: "Y",
-      languageid: 'en',
-      marketid: 'JAM',
-      password: process.env.STATIC_PASSWORD,
-      username: process.env.STATIC_USERNAME
+  let sessionid = state.sessionid;
+  if(!state.sessionid){
+    const loginReq = {
+      failstatus: 0,
+      request: {
+        getpaymentgateway: "Y",
+        languageid: 'en',
+        marketid: 'JAM',
+        password: process.env.STATIC_PASSWORD,
+        username: process.env.STATIC_USERNAME
+      }
     }
+    sessionid = await axios.post(`${process.env.DEVSERVER}/login`, loginReq)
+    sessionid = sessionid?.data?.data?.sessionid
   }
-  const sessionid = await axios.post(`${process.env.DEVSERVER}/login`, loginReq)
   return {
-    sessionid: sessionid.data.data.sessionid,
+    sessionid: sessionid,
     done: parsed.done,
-    collected: { ...state.collected, productid: parsed.collected.productid },
-    productid: parsed.collected.productid,
+    // collected: { ...state.collected, productid: parsed.collected.productid },
+    productid: parsed.productid,
     currentNode: "startBooking",
   };
 };
@@ -215,8 +266,12 @@ const contactHandler = async (state) => {
   const userMessage = messageObj("user", state.input);
   memory.push(userMessage);
 
-  currentNode = "contactinfo";
-  const prompt = `${agent_intro} ${contactInfoInstruction}`;
+  // currentNode = "contactinfo";
+  const direction = state.productid === "ARRIVALONLY" ? "A" : "D";
+  const adulttickets = state.collected[direction].tickets.adulttickets
+  const childtickets = state.collected[direction].tickets.childtickets
+
+  const prompt = `${agent_intro} ${contactInfoInstruction(adulttickets, childtickets)}`;
   const response = await llm.invoke([...memory, messageObj("system", prompt)]);
   let parsed = await jsonParser(response.content);
 
@@ -226,26 +281,150 @@ const contactHandler = async (state) => {
     return interrupt({ prompt: parsed.message });
   }
 
+  const passengers = []
+
+  const passengersDetails = parsed.passengerDetails || [];
+
+  for(let i = 0; i < adulttickets; i++){
+    const passenger = {
+      title: titleSanitizer(passengersDetails.adults[i].title),
+      firstname: passengersDetails.adults[i].firstname,
+      lastname: passengersDetails.adults[i].lastname,
+      email: passengersDetails.adults[i].email,
+      phone: parsed.contact.phone,
+      dob: normalizeToYYYYMMDD(passengersDetails.adults[i].dob),
+      passengertype: "ADULT",
+    }
+    passengers.push(passenger);
+  }
+
+  for(let i = 0; i < childtickets; i++){
+    const passenger = {
+      title: titleSanitizer(passengersDetails.children[i].title),
+      firstname: passengersDetails.children[i].firstname,
+      lastname: passengersDetails.children[i].lastname,
+      email: passengersDetails.children[i].email,
+      phone: parsed.contact.phone,
+      dob: normalizeToYYYYMMDD(passengersDetails.children[i].dob),
+      passengertype: "CHILD",
+    }
+    passengers.push(passenger);
+  }
+
+  const primaryContact = {
+    title: titleSanitizer(parsed.contact.title),
+    firstname: parsed.contact.firstname,
+    lastname: parsed.contact.lastname,
+    email: parsed.contact.email,  
+    phone: parsed.contact.phone,
+  }
+
+  const cartItems = {
+    adulttickets: adulttickets,
+    amount: state.reseravationData.retail,
+    arrivalscheduleid: state?.reseravationData?.arrivalscheduleid || 0,
+    cartitemid: state.currentCartId,
+    childtickets: childtickets,
+    departurescheduleid: state?.reseravationData?.departurescheduleid || 0,
+    groupbooking: "N",
+    groupid: "NA",
+    infanttickets: 0,
+    optional: { occasioncomment: "", paddlename: "AI Agent", specialoccasion: "VACATION" },
+    passengers: passengers,
+    primarycontact: primaryContact,
+    productid: state.productid,
+    referencenumber: '',
+    secondarycontact: {
+      email: "",
+      firstname: "",
+      lastname: "",
+      phone: "",
+      title: "MR"
+    }
+  }
+
+  const cart = {...state.cart,
+    [state.currentCartId]: cartItems
+  }
+
+  console.log("Contact handler cart:", cart);
+
+
   return {
     done: parsed.done,
-    contactInfo: parsed.contact,
-    passengerDetails: parsed.passengerDetails,
+    cart: cart,
+    collected:{ A:null, D:null },
+    scheduleData:{ A:null, D:null },
+    productid:'',
+    reseravationData:null,
     currentNode: "contactinfo",
   };
 };
+
 const setContactStep = async (state) => {
-  console.log(state)
+
+  const primaryContactsFromCurrentCart = state.cart[state.currentCartId]?.primarycontact;
   const response = await toolMap["setcontact"].func({
-    firstname: state.contactInfo.firstname,
-    lastname: state.contactInfo.lastname,
-    email: state.contactInfo.email,
-    phone: state.contactInfo.phone,
-    cartitemid: state.reseravationData.cartitemid,
+    firstname: primaryContactsFromCurrentCart.firstname,
+    lastname: primaryContactsFromCurrentCart.lastname,
+    email: primaryContactsFromCurrentCart.email,
+    phone: primaryContactsFromCurrentCart.phone,
+    cartitemid: state.currentCartId,
     sessionid: state.sessionid
   });
-  console.log("setcontact response ", response);
-  return {};
+  // console.log("setcontact response ", response);
+  return {
+    done: true,
+    currentNode: "setcontact",
+  };
 };
+
+const carthandler = async (state) => {
+  // currentNode = "cartconfirmation";
+  const userMessage = messageObj("user", state.input);
+  memory.push(userMessage);
+  const cartdata = [];
+  let totalAmount = 0;
+
+  for (const cartitemid in state.cart){
+    const item = state.cart[cartitemid];
+    const cartItem = {
+      producttype: item.productid,
+      passengersCount: item.passengers.length,
+      amount: item.amount,
+      cartitemid: item.cartitemid,
+    }
+    totalAmount = totalAmount + item.amount;
+    cartdata.push(cartItem);
+  }
+
+  const prompt = `${agent_intro} ${BookingConfirmationInstruction(cartdata, totalAmount)}`;
+  const response = await llm.invoke([...memory, messageObj("system", prompt)]);
+  let parsed = await jsonParser(response.content);
+  memory.push(messageObj("assistant", parsed.message));
+  console.log("cart confirmation response", totalAmount);
+  if (!parsed?.done) {
+    return interrupt({ prompt: parsed.message });
+  }
+
+  const newNode = parsed.done ? parsed.proceedToPayment ? "paymentinfo" : "startBooking" : "cartconfirmation";
+  // currentNode = newNode;
+  if(parsed.done && !parsed.proceedToPayment){
+    memory = [memory[memory.length - 1]];
+  }
+
+
+  console.log("cart handler State::",state)
+
+  return{
+    done: parsed.done,
+    proceedToPayment: parsed.proceedToPayment,
+    currentNode: "cartconfirmation",
+    totalAmount: totalAmount,
+    currentCartId:0
+  }
+
+}
 
 const productSuccess = async (state) => {
   console.log("congrats your product is booked");
@@ -254,7 +433,7 @@ const productSuccess = async (state) => {
 
 const callpayment = async (state) => {
   let response = await toolMap["payment"].func({ state });
-  // response = await jsonParser(response);
+  response = await jsonParser(response[0]);
   console.log("payment response" , response)
   console.log("callpayment response ", response);
   
@@ -265,10 +444,9 @@ const callpayment = async (state) => {
 const paymentHandler = async (state) => {
   const userMessage = messageObj("user", state.input);
   memory.push(userMessage)
-  currentNode = 'paymentinfo';
+  // currentNode = 'paymentinfo';
   const prompt = `${agent_intro} ${PaymentProcessingInformation}`;
-  const response = await llm.invoke([userMessage, messageObj("system", prompt)]);
-  console.log('local llm' , response)
+  const response = await llm.invoke([...memory, messageObj("system", prompt)]);
   let parsed = await jsonParser(response.content);
 
   memory.push(messageObj("assistant", parsed.message));
@@ -276,6 +454,8 @@ const paymentHandler = async (state) => {
   if (!parsed?.done) {
     return interrupt({ prompt: parsed.message });
   }
+
+  console.log("payment handler response", parsed);
 
   return {
     done: parsed.done,
@@ -298,10 +478,12 @@ graph.addNode("scheduleinfo", infoCollector);
 graph.addNode("contactinfo", contactHandler);
 graph.addNode("setcontact", setContactStep);
 graph.addNode("productend", productSuccess);
+graph.addNode("cartconfirmation",carthandler)
 graph.addNode("paymentinfo", paymentHandler)
 graph.addNode("callpayment", callpayment);
+
 graph.addConditionalEdges(START, (state) => {
-  return currentNode || "classify";
+  return state.currentNode || "classify";
 });
 
 graph.addConditionalEdges("classify", (state) => {
@@ -324,10 +506,14 @@ graph.addConditionalEdges("paymentinfo", (state) => {
   return state.done ? "callpayment" : "paymentinfo"
 });
 
+graph.addConditionalEdges("cartconfirmation",(state)=>{
+  return state.done ? (state.proceedToPayment ? "paymentinfo" : "startBooking"): "cartconfirmation";
+})
+
 graph.addEdge("general", END);
 graph.addEdge("schedulecall", "reservation");
 graph.addEdge("reservation", "contactinfo");
-graph.addEdge("setcontact", "paymentinfo");
+graph.addEdge("setcontact", "cartconfirmation");
 graph.addEdge("callpayment", "productend")
 graph.addEdge("productend", END)
 

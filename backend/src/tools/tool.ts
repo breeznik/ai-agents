@@ -133,36 +133,12 @@ export async function processPayment(state: any) {
         sessionid
     }
 
-    const titleSanitizer = (title) => (title.trim().replace(/\./g, '').toUpperCase())
-
     const getCartItems = await axios.post(`${process.env.DEVSERVER}/getcartitems`, getCartItemsReq)
 
-    const adulttickets = state.collected?.A?.tickets ? state.collected.A.tickets.adulttickets : state.collected.D.tickets.adulttickets
-    const childtickets = state.collected?.A?.tickets ? state.collected.A.tickets.childtickets : state.collected.D.tickets.childtickets
-    const amount = state.reseravationData.retail
-    const passengers = []
-    for (let i = 0; i < adulttickets; i++) {
-        passengers.push({
-            dob: state.passengerDetails.adults[i].dob || "",
-            email: state.passengerDetails.adults[i].email,
-            firstname: state.passengerDetails.adults[i].firstname,
-            lastname: state.passengerDetails.adults[i].lastname,
-            passengertype: "ADULT",
-            phone: state.contactInfo.phone,
-            title: titleSanitizer(state.passengerDetails.adults[i].title),
-        });
-    }
-    for (let i = 0; i < childtickets; i++) {
-        passengers.push({
-            dob: state.passengerDetails.children[i].dob,
-            email: undefined,
-            firstname: state.passengerDetails.children[i].firstname,
-            lastname: state.passengerDetails.children[i].lastname,
-            passengertype: "CHILD",
-            phone: state.contactInfo.phone,
-            title: titleSanitizer(state.passengerDetails.children[i].title)
-        })
-    }
+    const amount = state.totalAmount || 0
+
+    const commonCart = Object.values(state.cart)
+
     const orderReq = {
         failstatus: 0,
         request: {
@@ -212,31 +188,6 @@ export async function processPayment(state: any) {
     };
 
     const encryptedData = encryptCardDetails(state.paymentInformation, process.env.STATIC_ENCRYPTION_KEY);
-    const direction = state.productid === "ARRIVALONLY" ? "A" : "D";
-
-    const commonCart = [{
-        adulttickets: adulttickets,
-        amount: amount,
-        arrivalscheduleid: direction === "A" ? state.scheduleData?.A.scheduleId : 0,
-        cartitemid: state.reseravationData.cartitemid,
-        childtickets: childtickets,
-        departurescheduleid: direction === "D" ? state.scheduleData?.D.scheduleId : 0,
-        groupbooking: "N",
-        groupid: "NA",
-        infanttickets: 0,
-        optional: { occasioncomment: "", paddlename: "AI Agent", specialoccasion: undefined },
-        passengers: passengers,
-        primarycontact: state.contactInfo,
-        productid: state.productid,
-        referencenumber: '',
-        secondarycontact: {
-            email: "",
-            firstname: "",
-            lastname: "",
-            phone: "",
-            title: "MR"
-        }
-    }]
 
     const addconfirmationLogReq = {
         failstatus: 0,
@@ -262,7 +213,7 @@ export async function processPayment(state: any) {
             referrerid: "",
             sendconfirmation: {
                 copyto: "",
-                sendto: state.contactInfo.email,
+                sendto: state.paymentInformation?.cardholderemail,
             },
             subaffiliateid: 0
         },
@@ -319,7 +270,7 @@ export async function processPayment(state: any) {
             referrerid: "",
             sendconfirmation: {
                 copyto: "",
-                sendto: state.contactInfo.email,
+                sendto: state.paymentInformation.cardholderemail,
             },
             subaffiliateid: 0,
         },

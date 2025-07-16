@@ -57,3 +57,25 @@ export function parseLLMResponse(raw: string) {
     };
   }
 }
+
+export function normalizeToYYYYMMDD(dateStr: string): string {
+  const yyyymmddRegex = /^\d{8}$/;
+  if (yyyymmddRegex.test(dateStr)) {
+    return dateStr;
+  }
+
+  const parsedDate = new Date(dateStr);
+  if (isNaN(parsedDate.getTime())) {
+    throw new Error("Invalid date format: " + dateStr);
+  }
+
+  const yyyy = parsedDate.getFullYear();
+  const mm = String(parsedDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(parsedDate.getDate()).padStart(2, '0');
+
+  return `${yyyy}${mm}${dd}`;
+}
+
+export function titleSanitizer (title:string): string {  
+  return (title.trim().replace(/\./g, '').toUpperCase())
+}
