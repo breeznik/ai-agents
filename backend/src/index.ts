@@ -23,6 +23,6 @@ app.get("/test", (req, res) => {
     res.json({ status: "ok", message: "Logger works!" });
 });
 
-app.listen(3000, () => {
+app.listen(3001, () => {
     console.log("Server listening on port 3000");
 });

@@ -16,7 +16,8 @@
     "typecheck": "bun typecheck",
     "lint": "bun run eslint src --ext .ts",
     "flow": "bun ./src/workflow/booking.flow.ts",
-    "inspector": "npx @modelcontextprotocol/inspector bun  src/mcp/std.server.ts"
+    "inspector": "npx @modelcontextprotocol/inspector bun  src/mcp/std.server.ts",
+    "postinstall": "bun build src/index.ts --outdir dist"
   },
   "devDependencies": {
     "@types/bun": "latest"

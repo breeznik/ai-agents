@@ -95,7 +95,8 @@ const stateSchema = z.object({
   paymentInformation: z.any(),
   messages: z.array(),
   paymentHtml: z.string().optional(),
-  confirmCart: z.any()
+  confirmCart: z.any(),
+  confirmcart_request: z.any()
 });
 
 const classify = async (state) => {
@@ -124,14 +125,14 @@ const scheduleStep = async (state) => {
     state.productid === "ARRIVALONLY" ||
     state.productid === "ARRIVALBUNDLE"
   ) {
-    responseHandler["A"] = await toolMap["getSchedule"].func({ ...state.collected.A, sessionid: state.sessionid });
+    responseHandler["A"] = await toolMap["schedule"].func({ ...state.collected.A, sessionid: state.sessionid });
     responseHandler["A"] = await jsonParser(responseHandler["A"][0])
   }
   if (state.productid === "DEPARTURELOUNGE" || state.productid === "ARRIVALBUNDLE") {
-    responseHandler["D"] = await toolMap["getSchedule"].func({ ...state.collected.D, sessionid: state.sessionid });
+    responseHandler["D"] = await toolMap["schedule"].func({ ...state.collected.D, sessionid: state.sessionid });
     responseHandler["D"] = await jsonParser(responseHandler["D"][0])
   }
-  // console.log("response getschedule", responseHandler)
+  console.log("response getschedule", responseHandler)
   return {
     done: true,
     scheduleData: responseHandler,
@@ -147,14 +148,14 @@ const reserveStep = async (state) => {
   }
   const direction = state.productid === "ARRIVALONLY" ? "A" : "D";
 
-  const response = await toolMap["reserveLounge"].func({
+  const response = await toolMap["reservation"].func({
     adulttickets: state.collected[direction].tickets.adulttickets,
     childtickets: state.collected[direction].tickets.childtickets,
     scheduleData: state.scheduleData,
     productid: state.productid, 
     sessionid: state.sessionid
   });
-  // console.log("reserver response : ", response);
+  console.log("reserver response : ", response);
   const reseravationData = await jsonParser(response[0]);
   return { 
     reseravationData: reseravationData, 
@@ -168,7 +169,7 @@ const answerGeneral = async (state) => {
   const asistantMessage = messageObj("assistant", res.content);
   memory.push(asistantMessage);
 
-  // console.log("general answer : ", res.content);
+  console.log("general answer : ", res.content);
   return {productid:''};
 };
 
@@ -196,7 +197,7 @@ const infoCollector = async (state) => {
   // const response = await llm.invoke([messageObj("system", prompt)]);
   let parsed = await jsonParser(response.content);
 
-  // console.log("🔍 Parsed object of schedule info:", parsed);
+  console.log("🔍 Parsed object of schedule info:", parsed);
 
   memory.push(messageObj("assistant", parsed.message));
 
@@ -236,7 +237,7 @@ const productType = async (state) => {
   if (!parsed?.done) {
     return interrupt({ prompt: parsed.message });
   }
-  // console.log("productID::", state.productid,parsed.productid);
+  console.log("productID::", state.productid,parsed.productid);
 
   let sessionid = state.sessionid;
   if(!state.sessionid){
@@ -347,7 +348,7 @@ const contactHandler = async (state) => {
     [state.currentCartId]: cartItems
   }
 
-  // console.log("Contact handler cart:", cart);
+  console.log("Contact handler cart:", cart);
 
 
   return {
@@ -364,7 +365,7 @@ const contactHandler = async (state) => {
 const setContactStep = async (state) => {
 
   const primaryContactsFromCurrentCart = state.cart[state.currentCartId]?.primarycontact;
-  const response = await toolMap["setcontact"].func({
+  const response = await toolMap["contact"].func({
     firstname: primaryContactsFromCurrentCart.firstname,
     lastname: primaryContactsFromCurrentCart.lastname,
     email: primaryContactsFromCurrentCart.email,
@@ -372,7 +373,7 @@ const setContactStep = async (state) => {
     cartitemid: state.currentCartId,
     sessionid: state.sessionid
   });
-  // console.log("setcontact response ", response);
+  console.log("setcontact response ", response);
   return {
     done: true,
     currentNode: "setcontact",
@@ -541,7 +542,7 @@ async function run(input, previousState = {}) {
     });
   }
 
-  // console.log("🎯 Final State:", state);
+  console.log("🎯 Final State:", state);
 }
 // --- Main Loop ---
 async function mainLoop() {

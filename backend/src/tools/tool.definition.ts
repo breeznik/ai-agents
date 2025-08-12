@@ -1,6 +1,6 @@
 import type { contactSchema, paymentSchema, reservationSchema, scheduleSchema } from "@/utils/types";
 import z from 'zod'
-import { getSchedule, processPayment, reserveCart, setContact } from "./tool";
+import { getSchedule, processPayment, payment2, reserveCart, setContact } from "./tool";
 
 const scheduleSchemaObj = {
     airportid: z.enum(['SIA', 'NMIA']),
@@ -32,7 +32,7 @@ const paymentSchemaObj = z.object({
 })
 
 export const scheduleTool = {
-    name: "getSchedule",
+    name: "schedule",
     description: "This tool validates the client flight schedule with the flights schedule avaialble in service",
     paramsSchema: scheduleSchemaObj,
     cb: async ({ airportid, direction, traveldate, flightId, sessionid }: scheduleSchema) => {
@@ -51,7 +51,7 @@ export const scheduleTool = {
 }
 
 export const reservationTool = {
-    name: "reserveLounge",
+    name: "reservation",
     description: "this tool determines if the reservation can be done for the specified lounge at the given schedule",
     paramsSchema: reservationSchemaObj,
     cb: async ({ adulttickets, childtickets, scheduleData, productid, sessionid }: reservationSchema) => {
@@ -63,7 +63,7 @@ export const reservationTool = {
 }
 
 export const contactTool = {
-    name: "setcontact",
+    name: "contact",
     description: "This is tool is used to save customer's contact information for product",
     paramsSchema: contactSchemaObj,
     cb: async ({ email, firstname, lastname, phone, cartitemid, sessionid }: contactSchema) => {
@@ -85,4 +85,22 @@ export const paymentTool = {
         }
     }
 
+}
+
+export const payment2Tool = {
+    name: "payment2",
+    description: "this tool is used to confirm the cart after payment processing",
+    paramsSchema: paymentSchemaObj.shape,
+    cb: async ({ state }: paymentSchema) => {
+        const data = await payment2(state);
+        // Extract only serializable data to avoid circular references
+        const result = {
+            success: !('error' in data) || !data.error,
+            error: ('error' in data) ? data.error : null,
+            confirmcart: data.state?.confirmcart?.data || null
+        };
+        return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+        }
+    }
 }
