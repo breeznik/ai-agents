@@ -2,6 +2,7 @@
 import axios from 'axios';
 import type { contactSchema, reservationSchema, scheduleSchema } from '@/utils/types';
 import CryptoJS from 'crypto-js';
+import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 export async function setContact({ email,
     firstname,
@@ -96,12 +97,31 @@ export async function reserveCart({
             `${process.env.DEVSERVER}/reservecartitem`,
             request
         );
-        console.log('request reponse' , response.data.data)
-        return response.data.data;
+        console.log('request reponse' , response)
+        const responseObject = {}
+        responseObject["isStandBy"] = true    
+        if ([92,93,94,95,96,98,99,176].includes(response.data.status)) {
+            responseObject["statusMessage"] = "At this time, the service requested is fully booked. You may continue with your reservations and we will place you on standby, and notify you when there is space available. We look forward to serving you.";
+        } else if (response.data.status === 296) {
+            responseObject["statusMessage"] = response?.data?.statusMessage || "Only Departure is available for your selected criteria.";
+        } else if (response.data.status === 297) {
+            responseObject["statusMessage"] = response?.data?.statusMessage || "Only Arrival is available for your selected criteria.";
+        } else if (response.data.status === 309) {
+            responseObject["statusMessage"] = response?.data?.statusMessage || "Can't proceed further. Please change your departure flight.";
+        } else if (response.data.status === 310) {
+            responseObject["statusMessage"] = response?.data?.statusMessage || "Please change your departure flight, or proceed with arrival only (standby).";
+        } else if (response.data.status === 311) {
+            responseObject["statusMessage"] = response?.data?.statusMessage || "Both flights are standby, but you can only proceed with arrival standby.";
+        }else{
+            responseObject["isStandBy"] = false
+        }
+        responseObject["data"] = response.data.data
+        return responseObject;
     } catch (error) {
         console.log(error);
     }
-    return "we have an error in reserving cart";
+    console.log('api error')
+    return {statusMessage: "we have an error in reserving cart" , data:{} , isStandBy: false};
 }
 
 export async function getSchedule({
